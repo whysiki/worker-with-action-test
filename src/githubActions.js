@@ -165,3 +165,5 @@ function generateRandomString(length) {
 	}
 	return result + Date.now().toString(36);
 }
+
+// module.exports = trasToGifWithGithubAction;

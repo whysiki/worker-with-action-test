@@ -25,17 +25,30 @@ export default {
 		const sticker = extractSticker(requestBody);
 		const command = extractCommand(requestBody);
 
-		const chat_id = requestBody.message.chat.id;
-		const chat_type = requestBody.message.chat.type; //supergroup, private, group
-		const chat_title = requestBody.message.chat.title;
-		const message_from = requestBody.message.from;
-		const message_from_id = from.id;
-		const message_from_is_bot = from.is_bot;
-		const message_from_first_name = from.first_name;
-		const message_from_last_name = from.last_name;
-		const message_from_username = from.username;
-		const message_from_language_code = from.language_code;
-		const message_from_is_premium = from.is_premium;
+		const chat_id = requestBody?.message?.chat?.id;
+		const chat_type = requestBody?.message?.chat?.type; //supergroup, private, group
+		const chat_title = requestBody?.message?.chat?.title;
+		const message_from = requestBody?.message?.from;
+		const message_from_id = message_from?.id;
+		const message_from_is_bot = message_from?.is_bot;
+		const message_from_first_name = message_from?.first_name;
+		const message_from_last_name = message_from?.last_name;
+		const message_from_username = message_from?.username;
+		const message_from_language_code = message_from?.language_code;
+		const message_from_is_premium = message_from?.is_premium;
+
+		// await sendMessage(botToken, OWNER_ID, `bot Started`);
+		//
+		// await sendMessage(botToken, OWNER_ID, `chat_id: ${chat_id}`);
+		// await sendMessage(botToken, OWNER_ID, `chat_type: ${chat_type}`);
+		// await sendMessage(botToken, OWNER_ID, `chat_title: ${chat_title}`);
+		// await sendMessage(botToken, OWNER_ID, `message_from: ${message_from}`);
+		// await sendMessage(botToken, OWNER_ID, `message_from_id: ${message_from_id}`);
+
+		if (!chat_id) {
+			await sendMessage(botToken, OWNER_ID, 'No chat_id');
+			return new Response('No chat_id', { status: 400 });
+		}
 
 		let sendMessageRespJson = ['Body Nothing'];
 		let showupdatedmessages = await redis.get('showupdatedmessages');

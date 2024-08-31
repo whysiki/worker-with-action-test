@@ -1,0 +1,1 @@
+python webhook.py "https://tgbot.whysiki.fun"
