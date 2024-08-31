@@ -28,6 +28,6 @@ jobs:
       run: |
         git config --global user.name "whysiki"
         git config --global user.email "whysiki@proton.me"
-        git add gifs/*.gif
+        git add res/picture/gif/*.gif
         git commit -m "Converted WebM to GIF"
         git push
