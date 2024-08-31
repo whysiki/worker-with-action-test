@@ -33,7 +33,7 @@ jobs:
         run: |
           file=$(ls -t res/video/webm/*.webm | head -n 1)
           filename=$(basename "$file" .webm)
-          tools/ffmpeg -i "$file" -loop 0 -vf "fps=10,scale=320:-1:flags=lanczos" -c:v gif "res/picture/gif/$filename.gif"
+          tools/ffmpeg -i "$file" -loop 0 -vf "fps=10,scale=320:-1:flags=lanczos" -c:v gif -y "res/picture/gif/$filename.gif"
 
       - name: List GIF files
         if: steps.check_files.outputs.files_found == 'true'
