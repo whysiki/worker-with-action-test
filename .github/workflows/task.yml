@@ -13,6 +13,9 @@ jobs:
       - name: Check out the repository
         uses: actions/checkout@v4
 
+      - name: show files
+        run: ls -l res/video/webm
+
       - name: Check if there are WebM files
         id: check_files
         run: |
