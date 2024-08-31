@@ -1,87 +1,53 @@
-# name: Convert WebM to GIF
-
-# on:
-#   push:
-#     paths:
-#       - 'res/video/webm/*.webm' 
-
-# jobs:
-#   convert:
-#     runs-on: ubuntu-latest
-
-#     steps:
-#     - name: Check out the repository
-#       uses: actions/checkout@v4 
-
-#     - name: Set up FFmpeg
-#       run: |
-#         chmod +x tools/ffmpeg
-
-#     - name: Convert WebM to GIF
-#       run: |
-#         for file in res/video/webm/*.webm; do
-#           filename=$(basename "$file" .webm)
-#           tools/ffmpeg -i "$file" "res/picture/gif/$filename.gif"
-#         done
-
-#     - name: Commit and push GIFs
-#       run: |
-#         git config --global user.name "whysiki"
-#         git config --global user.email "whysiki@proton.me"
-#         git add res/picture/gif/*.gif
-#         git commit -m "Converted WebM to GIF"
-#         git push -f
-
-
 name: Convert WebM to GIF
 
 on:
   push:
     paths:
-      - 'res/video/webm/*.webm' 
+      - 'res/video/webm/*.webm'
 
 jobs:
   convert:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Check out the repository
-      uses: actions/checkout@v4 
+      - name: Check out the repository
+        uses: actions/checkout@v4
 
-    - name: Check if there are WebM files
-      id: check_files
-      run: |
-        if [ -z "$(ls -A res/video/webm/*.webm 2>/dev/null)" ]; then
-          echo "No WebM files found."
-          echo "::set-output name=files_found::false"
-        else
-          echo "WebM files found."
-          echo "::set-output name=files_found::true"
-        fi
+      - name: Check if there are WebM files
+        id: check_files
+        run: |
+          if [ -z "$(ls -A res/video/webm/*.webm 2>/dev/null | grep -v test_0000.webm)" ]; then
+            echo "No WebM files found."
+            echo "::set-output name=files_found::false"
+          else
+            echo "WebM files found."
+            echo "::set-output name=files_found::true"
+          fi
 
-    - name: Set up FFmpeg
-      if: steps.check_files.outputs.files_found == 'true'
-      run: chmod +x tools/ffmpeg
+      - name: Set up FFmpeg
+        if: steps.check_files.outputs.files_found == 'true'
+        run: chmod +x tools/ffmpeg
 
-    - name: Convert WebM to GIF
-      if: steps.check_files.outputs.files_found == 'true'
-      run: |
-        for file in res/video/webm/*.webm; do
+      - name: Convert WebM to GIF
+        if: steps.check_files.outputs.files_found == 'true'
+        run: |
+          file=$(ls -t res/video/webm/*.webm | head -n 1)
           filename=$(basename "$file" .webm)
           tools/ffmpeg -i "$file" "res/picture/gif/$filename.gif"
-        done
 
-    - name: List GIF files
-      if: steps.check_files.outputs.files_found == 'true'
-      run: ls -l res/picture/gif
+      - name: List GIF files
+        if: steps.check_files.outputs.files_found == 'true'
+        run: ls -l res/picture/gif
 
-    - name: Commit and push GIFs
-      if: steps.check_files.outputs.files_found == 'true'
-      env:
-        ACTIONS_PAT: ${{ secrets.ACTIONS_PAT }}
-      run: |
-        git config --global user.name "whysiki"
-        git config --global user.email "whysiki@proton.me"
-        git add res/picture/gif/*.gif
-        git commit -m "Converted WebM to GIF"
-        git push -f https://whysiki:${{ secrets.ACTIONS_PAT }}@github.com/whysiki/worker-with-action-test.git
+      - name: Commit and push GIFs
+        if: steps.check_files.outputs.files_found == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          OWNER_ID: ${{ secrets.OWNER_ID }}
+        run: |
+          latest_gif=$(ls -t res/picture/gif/*.gif | head -n 1)
+          if [ -z "$latest_gif" ] || [ "$latest_gif" = "res/picture/gif/test_0000.gif" ]; then
+            echo "No GIF files found."
+            exit 1
+          fi
+          curl -F "chat_id=$OWNER_ID" -F "document=@$latest_gif" https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument
