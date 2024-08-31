@@ -59,7 +59,7 @@ export async function trasToGifWithGithubAction(IMAGE_URL_Array_or_Single, API_T
 
 			return response.json();
 		} catch (error) {
-			console.error('Error:', error.message);
+			// console.error('Error:', error.message);
 			Failed_Callback_Function();
 		}
 	}

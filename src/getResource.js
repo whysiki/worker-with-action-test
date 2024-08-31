@@ -45,3 +45,28 @@ export async function downloadFile({ botToken, file_path }) {
 		return { error: error.message };
 	}
 }
+
+export async function getStickerSet(botToken, name) {
+	const encodedName = encodeURIComponent(name);
+	const url = `https://api.telegram.org/bot${botToken}/getStickerSet?name=${encodedName}`;
+
+	try {
+		const response = await fetch(url);
+
+		if (!response.ok) {
+			const errorText = await response.text(); // 读取响应体以获取更多错误信息
+			throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+		}
+
+		const data = await response.json();
+
+		// 检查 API 响应中的成功标志
+		if (!data.ok) {
+			throw new Error(`API error: ${data.description}`);
+		}
+
+		return data;
+	} catch (error) {
+		return { error: error.message };
+	}
+}

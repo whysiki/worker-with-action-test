@@ -1,12 +1,12 @@
 import { Redis } from '@upstash/redis/cloudflare';
 
-import { sendMessage, sendPhoto, sendPhotoBlob, sendDocumentBlob, sendDocument, sendVideoBlob } from './send.js';
+import { sendMessage, sendPhoto, sendPhotoBlob, sendDocumentBlob, sendDocument, sendVideoBlob, sendMediaGroup } from './send.js';
 
 import { getRequestBody } from './getRequest.js';
 
 import { extractCommand, extractSticker } from './extract.js';
 
-import { getFile, downloadFile } from './getResource.js';
+import { getFile, downloadFile, getStickerSet } from './getResource.js';
 
 import { trasToGifWithGithubAction } from './githubActions.js';
 
@@ -22,7 +22,7 @@ export default {
 		const OWNER_ID = env.OWNER_ID;
 
 		const redis = Redis.fromEnv(env);
-		const sticker = extractSticker(requestBody);
+		const sticker = extractSticker(requestBody); //sticker object
 		const command = extractCommand(requestBody);
 
 		const chat_id = requestBody?.message?.chat?.id;
@@ -37,22 +37,15 @@ export default {
 		const message_from_language_code = message_from?.language_code;
 		const message_from_is_premium = message_from?.is_premium;
 
-		// await sendMessage(botToken, OWNER_ID, `bot Started`);
-		//
-		// await sendMessage(botToken, OWNER_ID, `chat_id: ${chat_id}`);
-		// await sendMessage(botToken, OWNER_ID, `chat_type: ${chat_type}`);
-		// await sendMessage(botToken, OWNER_ID, `chat_title: ${chat_title}`);
-		// await sendMessage(botToken, OWNER_ID, `message_from: ${message_from}`);
-		// await sendMessage(botToken, OWNER_ID, `message_from_id: ${message_from_id}`);
+		let sendMessageRespJson = ['Body Nothing'];
+		let showupdatedmessages = await redis.get('showupdatedmessages');
+		let stickerecho = await redis.get('stickerecho');
+		let stickersetecho = await redis.get('stickersetecho');
 
 		if (!chat_id) {
 			await sendMessage(botToken, OWNER_ID, 'No chat_id');
 			return new Response('No chat_id', { status: 400 });
 		}
-
-		let sendMessageRespJson = ['Body Nothing'];
-		let showupdatedmessages = await redis.get('showupdatedmessages');
-		let stickerecho = await redis.get('stickerecho');
 
 		if (command === 'stickerechoon') {
 			await sendMessage(botToken, OWNER_ID, 'Sticker echo enable');
@@ -64,6 +57,95 @@ export default {
 			await redis.set('stickerecho', 'off');
 			stickerecho = 'off';
 		}
+
+		if (command === 'stickersetechoon') {
+			await sendMessage(botToken, OWNER_ID, 'disable');
+			await redis.set('stickersetecho', 'on');
+			stickersetecho = 'on';
+		}
+
+		if (command === 'stickersetechooff') {
+			await sendMessage(botToken, OWNER_ID, 'disable');
+			await redis.set('stickersetecho', 'off');
+			stickersetecho = 'off';
+		}
+
+		// if (sticker && sticker.set_name && stickersetecho === 'on' && chat_type === 'private' && stickerecho === 'off') {
+		// 	// await sendMessage(botToken, OWNER_ID, 'getStickerSet Test');
+
+		// 	const set_name = sticker.set_name;
+		// 	// await sendMessage(botToken, OWNER_ID, `sticker.set_name: ${set_name}`);
+		// 	const stickerSet = await getStickerSet(botToken, set_name);
+		// 	if (stickerSet.result && stickerSet.result.stickers) {
+		// 		const stickerSetStickers = stickerSet.result.stickers;
+		// 		const length_stickerSetStickers = stickerSetStickers.length;
+		// 		// await sendMessage(botToken, chat_id, `length_stickerSetStickers: ${length_stickerSetStickers}`);
+		// 		let stickerVideosfileUrlArray = [];
+		// 		async function processStickerSet(stickerSetStickers, botToken, chat_id) {
+		// 			// 处理所有的 stickers
+		// 			const promises = stickerSetStickers.map(async (sticker) => {
+		// 				try {
+		// 					const file_id = sticker.file_id;
+
+		// 					const file = await getFile({ botToken, file_id });
+		// 					const file_path = file.result.file_path;
+		// 					const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
+		// 					const photoarraybuffer = await downloadFile({ botToken, file_path });
+
+		// 					// 在浏览器中直接使用 photoarraybuffer
+		// 					const photoBlob = new Blob([photoarraybuffer], { type: getMimeType(file_path) });
+
+		// 					// await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
+		// 					if (sticker.is_video) {
+		// 						stickerVideosfileUrlArray.push(fileUrl);
+		// 					} else {
+		// 						await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
+		// 					}
+
+		// 					return {
+		// 						type: getMimeType(file_path),
+		// 						media: photoBlob,
+		// 					};
+		// 				} catch (error) {
+		// 					console.error(`Error processing sticker ${sticker.file_id}:`, error);
+		// 					return null;
+		// 				}
+		// 			});
+
+		// 			await Promise.all(promises);
+
+		// 			// 处理 stickerVideosfileUrlArray
+		// 			await trasToGifWithGithubAction(
+		// 				stickerVideosfileUrlArray,
+		// 				GITHUB_TOKEN,
+		// 				() => {
+		// 					sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
+		// 				},
+		// 				chat_id
+		// 			);
+
+		// 			// 等待所有 Promise 完成
+		// 			// const inputMediaPhotos = await Promise.all(promises);
+
+		// 			// // 过滤掉可能为 null 的项
+		// 			// const validInputMediaPhotos = inputMediaPhotos.filter((item) => item !== null);
+
+		// 			// // 调用 sendMediaGroup 方法
+		// 			// await sendMediaGroup(botToken, chat_id, validInputMediaPhotos.slice(1, 4));
+		// 		}
+
+		// 		// await processStickerSet(stickerSetStickers, botToken, chat_id);
+
+		// 		// 对stickerSetStickers进行分组分批处理，每组4个
+		// 		const groupSize = 4;
+		// 		for (let i = 0; i < stickerSetStickers.length; i += groupSize) {
+		// 			const group = stickerSetStickers.slice(i, i + groupSize);
+		// 			await processStickerSet(group, botToken, chat_id);
+		// 			// 等待一段时间
+		// 			await new Promise((resolve) => setTimeout(resolve, 5000));
+		// 		}
+		// 	}
+		// }
 
 		if (sticker && stickerecho === 'on' && chat_type === 'private') {
 			const file_id = sticker.file_id;
