@@ -180,3 +180,4 @@ dist
 /ffmpeg-git-amd64-static.tar.xz
 /ffmpeg-git-20240629-amd64-static
 /tools
+/setCommandMenu.py
