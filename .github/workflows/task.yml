@@ -3,7 +3,7 @@ name: Convert WebM to GIF
 on:
   push:
     paths:
-      - 'res/video/webm/*.webm' # Run only when a WebM file is added
+      - 'res/video/webm/*.webm' 
 
 jobs:
   convert:
