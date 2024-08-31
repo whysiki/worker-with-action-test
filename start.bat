@@ -22,4 +22,4 @@ start powershell -NoExit -Command "cloudflared tunnel --config './cloudflare_d/c
 
 
 
-@REM python script.py https://tgbot-whysiki.oooplhhhg.workers.dev
+@REM python webhook.py https://tgbot-whysiki.oooplhhhg.workers.dev

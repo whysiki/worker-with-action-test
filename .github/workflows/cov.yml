@@ -1,0 +1,33 @@
+name: Convert WebM to GIF
+
+on:
+  push:
+    paths:
+      - 'res/video/webm/*.webm' # Run only when a WebM file is added
+
+jobs:
+  convert:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out the repository
+      uses: actions/checkout@v3
+
+    - name: Set up FFmpeg
+      run: |
+        chmod +x tools/ffmpeg
+
+    - name: Convert WebM to GIF
+      run: |
+        for file in res/video/webm/*.webm; do
+          filename=$(basename "$file" .webm)
+          tools/ffmpeg/ffmpeg -i "$file" "res/picture/gif/$filename.gif"
+        done
+
+    - name: Commit and push GIFs
+      run: |
+        git config --global user.name "whysiki"
+        git config --global user.email "whysiki@proton.me"
+        git add gifs/*.gif
+        git commit -m "Converted WebM to GIF"
+        git push
