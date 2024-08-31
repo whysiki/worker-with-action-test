@@ -40,6 +40,7 @@ export default {
 				if (sticker.is_video) {
 					// await sendDocumentBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
 					// await sendVideoBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
+					await sendMessage(botToken, OWNER_ID, 'Sticker Video echo');
 					await trasToGifWithGithubAction(fileUrl, GITHUB_TOKEN);
 				} else {
 					await sendPhotoBlob(botToken, OWNER_ID, photoBlob, null, 'Sticker echo');
