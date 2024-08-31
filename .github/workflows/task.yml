@@ -68,8 +68,9 @@ jobs:
             if [ -f "$file" ]; then
               filename=$(basename "$file" .gif)
               if [ "$filename" != "test_0000" ]; then
-                chatID=$(echo "$filename" | cut -d'__' -f 1)
-                curl -F "chat_id=$chatID" -F "document=@$file;type=image/gif;filename=$filename.gif" "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument?disable_content_type_detection=true"
+                chatID=$(echo "$filename" | awk -F '__' '{print $1}')
+                curl -F "chat_id=$chatID" -F "document=@$file;type=image/gif;filename=$filename.gif" \
+                "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument?disable_content_type_detection=true"
               fi
             fi
           done
