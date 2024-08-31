@@ -20,28 +20,38 @@ export default {
 		const OWNER_ID = env.OWNER_ID;
 		const redis = Redis.fromEnv(env);
 		const sticker = extractSticker(requestBody);
+		const command = extractCommand(requestBody);
+		let sendMessageRespJson = ['Body Nothing'];
+		let showupdatedmessages = await redis.get('showupdatedmessages');
+		let stickerecho = await redis.get('stickerecho');
+		if (command === 'stickerechoon') {
+			await sendMessage(botToken, OWNER_ID, 'Sticker echo enable');
+			await redis.set('stickerecho', 'on');
+			stickerecho = 'on';
+		}
+		if (command === 'stickerechooff') {
+			await sendMessage(botToken, OWNER_ID, 'Sticker echo disable');
+			await redis.set('stickerecho', 'off');
+			stickerecho = 'off';
+		}
 
-		if (sticker) {
-			// await sendMessage(botToken, OWNER_ID, 'Sticker');
+		if (sticker && stickerecho === 'on') {
 			const file_id = sticker.file_id;
-			// await sendMessage(botToken, OWNER_ID, file_id);
 			const file = await getFile({ botToken, file_id });
 			const file_path = file.result.file_path;
-			// await sendMessage(botToken, OWNER_ID, file_path);
-
 			const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
-			await sendMessage(botToken, OWNER_ID, fileUrl);
-
+			// await sendMessage(botToken, OWNER_ID, fileUrl);
 			const photoarraybuffer = await downloadFile({ botToken, file_path });
 			const photoBlob = new Blob([Buffer.from(photoarraybuffer)], { type: getMimeType(file_path) });
-
 			try {
-				await sendMessage(botToken, OWNER_ID, getMimeType(file_path));
+				// await sendMessage(botToken, OWNER_ID, getMimeType(file_path));
 				if (sticker.is_video) {
 					// await sendDocumentBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
 					// await sendVideoBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
-					await sendMessage(botToken, OWNER_ID, 'Sticker Video echo');
-					await trasToGifWithGithubAction(fileUrl, GITHUB_TOKEN);
+					// await sendMessage(botToken, OWNER_ID, 'Sticker Video echo');
+					await trasToGifWithGithubAction(fileUrl, GITHUB_TOKEN, () => {
+						sendMessage(botToken, OWNER_ID, 'Echo Sticker Video Failed');
+					});
 				} else {
 					await sendPhotoBlob(botToken, OWNER_ID, photoBlob, null, 'Sticker echo');
 				}
@@ -50,12 +60,7 @@ export default {
 			}
 		}
 
-		let sendMessageRespJson = ['Body Nothing'];
-		let showupdatedmessages = await redis.get('showupdatedmessages');
-
 		if (requestBody) {
-			const command = extractCommand(requestBody);
-
 			if (command === 'showupdatedmessageson') {
 				await sendMessage(botToken, OWNER_ID, 'showUpdatedMessagesOn enable');
 				await redis.set('showupdatedmessages', 'on');
