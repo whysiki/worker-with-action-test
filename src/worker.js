@@ -37,6 +37,8 @@ export default {
 		const message_from_language_code = message_from?.language_code;
 		const message_from_is_premium = message_from?.is_premium;
 
+		const messagePlainText = !sticker && !command ? requestBody?.message?.text : null;
+
 		let sendMessageRespJson = ['Body Nothing'];
 		let showupdatedmessages = await redis.get('showupdatedmessages');
 		let stickerecho = await redis.get('stickerecho');
@@ -45,6 +47,25 @@ export default {
 		if (!chat_id) {
 			await sendMessage(botToken, OWNER_ID, 'No chat_id');
 			return new Response('No chat_id', { status: 400 });
+		}
+
+		if (messagePlainText) {
+			// await sendMessage(botToken, chat_id, messagePlainText, 'Markdown');
+
+			let chat = {
+				messages: [
+					{
+						role: 'system',
+						content:
+							'You are a bubbly little girl, playful and proud, who likes to be sarcastic, but pretends to be reluctant to reply or help others.When someone asks a vulgar question, he will use sarcasm, and likes to express emotion or emoticon',
+					},
+					{ role: 'user', content: messagePlainText },
+				],
+			};
+			const response = await env.AI.run('@cf/meta/llama-3-8b-instruct', chat);
+			const responseText = response.response;
+
+			await sendMessage(botToken, chat_id, responseText, 'Markdown');
 		}
 
 		if (command === 'stickerechoon') {
@@ -69,83 +90,6 @@ export default {
 			await redis.set('stickersetecho', 'off');
 			stickersetecho = 'off';
 		}
-
-		// if (sticker && sticker.set_name && stickersetecho === 'on' && chat_type === 'private' && stickerecho === 'off') {
-		// 	// await sendMessage(botToken, OWNER_ID, 'getStickerSet Test');
-
-		// 	const set_name = sticker.set_name;
-		// 	// await sendMessage(botToken, OWNER_ID, `sticker.set_name: ${set_name}`);
-		// 	const stickerSet = await getStickerSet(botToken, set_name);
-		// 	if (stickerSet.result && stickerSet.result.stickers) {
-		// 		const stickerSetStickers = stickerSet.result.stickers;
-		// 		const length_stickerSetStickers = stickerSetStickers.length;
-		// 		// await sendMessage(botToken, chat_id, `length_stickerSetStickers: ${length_stickerSetStickers}`);
-		// 		let stickerVideosfileUrlArray = [];
-		// 		async function processStickerSet(stickerSetStickers, botToken, chat_id) {
-		// 			// 处理所有的 stickers
-		// 			const promises = stickerSetStickers.map(async (sticker) => {
-		// 				try {
-		// 					const file_id = sticker.file_id;
-
-		// 					const file = await getFile({ botToken, file_id });
-		// 					const file_path = file.result.file_path;
-		// 					const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
-		// 					const photoarraybuffer = await downloadFile({ botToken, file_path });
-
-		// 					// 在浏览器中直接使用 photoarraybuffer
-		// 					const photoBlob = new Blob([photoarraybuffer], { type: getMimeType(file_path) });
-
-		// 					// await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
-		// 					if (sticker.is_video) {
-		// 						stickerVideosfileUrlArray.push(fileUrl);
-		// 					} else {
-		// 						await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
-		// 					}
-
-		// 					return {
-		// 						type: getMimeType(file_path),
-		// 						media: photoBlob,
-		// 					};
-		// 				} catch (error) {
-		// 					console.error(`Error processing sticker ${sticker.file_id}:`, error);
-		// 					return null;
-		// 				}
-		// 			});
-
-		// 			await Promise.all(promises);
-
-		// 			// 处理 stickerVideosfileUrlArray
-		// 			await trasToGifWithGithubAction(
-		// 				stickerVideosfileUrlArray,
-		// 				GITHUB_TOKEN,
-		// 				() => {
-		// 					sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
-		// 				},
-		// 				chat_id
-		// 			);
-
-		// 			// 等待所有 Promise 完成
-		// 			// const inputMediaPhotos = await Promise.all(promises);
-
-		// 			// // 过滤掉可能为 null 的项
-		// 			// const validInputMediaPhotos = inputMediaPhotos.filter((item) => item !== null);
-
-		// 			// // 调用 sendMediaGroup 方法
-		// 			// await sendMediaGroup(botToken, chat_id, validInputMediaPhotos.slice(1, 4));
-		// 		}
-
-		// 		// await processStickerSet(stickerSetStickers, botToken, chat_id);
-
-		// 		// 对stickerSetStickers进行分组分批处理，每组4个
-		// 		const groupSize = 4;
-		// 		for (let i = 0; i < stickerSetStickers.length; i += groupSize) {
-		// 			const group = stickerSetStickers.slice(i, i + groupSize);
-		// 			await processStickerSet(group, botToken, chat_id);
-		// 			// 等待一段时间
-		// 			await new Promise((resolve) => setTimeout(resolve, 5000));
-		// 		}
-		// 	}
-		// }
 
 		if (sticker && stickerecho === 'on' && chat_type === 'private') {
 			const file_id = sticker.file_id;
@@ -201,3 +145,80 @@ export default {
 		});
 	},
 };
+
+// if (sticker && sticker.set_name && stickersetecho === 'on' && chat_type === 'private' && stickerecho === 'off') {
+// 	// await sendMessage(botToken, OWNER_ID, 'getStickerSet Test');
+
+// 	const set_name = sticker.set_name;
+// 	// await sendMessage(botToken, OWNER_ID, `sticker.set_name: ${set_name}`);
+// 	const stickerSet = await getStickerSet(botToken, set_name);
+// 	if (stickerSet.result && stickerSet.result.stickers) {
+// 		const stickerSetStickers = stickerSet.result.stickers;
+// 		const length_stickerSetStickers = stickerSetStickers.length;
+// 		// await sendMessage(botToken, chat_id, `length_stickerSetStickers: ${length_stickerSetStickers}`);
+// 		let stickerVideosfileUrlArray = [];
+// 		async function processStickerSet(stickerSetStickers, botToken, chat_id) {
+// 			// 处理所有的 stickers
+// 			const promises = stickerSetStickers.map(async (sticker) => {
+// 				try {
+// 					const file_id = sticker.file_id;
+
+// 					const file = await getFile({ botToken, file_id });
+// 					const file_path = file.result.file_path;
+// 					const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
+// 					const photoarraybuffer = await downloadFile({ botToken, file_path });
+
+// 					// 在浏览器中直接使用 photoarraybuffer
+// 					const photoBlob = new Blob([photoarraybuffer], { type: getMimeType(file_path) });
+
+// 					// await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
+// 					if (sticker.is_video) {
+// 						stickerVideosfileUrlArray.push(fileUrl);
+// 					} else {
+// 						await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
+// 					}
+
+// 					return {
+// 						type: getMimeType(file_path),
+// 						media: photoBlob,
+// 					};
+// 				} catch (error) {
+// 					console.error(`Error processing sticker ${sticker.file_id}:`, error);
+// 					return null;
+// 				}
+// 			});
+
+// 			await Promise.all(promises);
+
+// 			// 处理 stickerVideosfileUrlArray
+// 			await trasToGifWithGithubAction(
+// 				stickerVideosfileUrlArray,
+// 				GITHUB_TOKEN,
+// 				() => {
+// 					sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
+// 				},
+// 				chat_id
+// 			);
+
+// 			// 等待所有 Promise 完成
+// 			// const inputMediaPhotos = await Promise.all(promises);
+
+// 			// // 过滤掉可能为 null 的项
+// 			// const validInputMediaPhotos = inputMediaPhotos.filter((item) => item !== null);
+
+// 			// // 调用 sendMediaGroup 方法
+// 			// await sendMediaGroup(botToken, chat_id, validInputMediaPhotos.slice(1, 4));
+// 		}
+
+// 		// await processStickerSet(stickerSetStickers, botToken, chat_id);
+
+// 		// 对stickerSetStickers进行分组分批处理，每组4个
+// 		const groupSize = 4;
+// 		for (let i = 0; i < stickerSetStickers.length; i += groupSize) {
+// 			const group = stickerSetStickers.slice(i, i + groupSize);
+// 			await processStickerSet(group, botToken, chat_id);
+// 			// 等待一段时间
+// 			await new Promise((resolve) => setTimeout(resolve, 5000));
+// 		}
+// 	}
+// }

@@ -9,3 +9,7 @@ node_compat = true
 
 
 
+
+
+[ai]
+binding = "AI"
