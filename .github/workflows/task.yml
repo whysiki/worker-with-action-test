@@ -39,9 +39,13 @@ jobs:
       - name: Convert WebM to GIF
         if: env.files_found == 'true'
         run: |
-          file=$(ls -t res/video/webm/*.webm | head -n 1)
-          filename=$(basename "$file" .webm)
-          tools/ffmpeg -i "$file" -loop 0 -vf "fps=10,scale=320:-1:flags=lanczos" -c:v gif -y "res/picture/gif/$filename.gif"
+          for file in res/video/webm/*.webm
+          do
+            filename=$(basename "$file" .webm)
+            if [ "$filename" != "test_0000" ]; then
+              tools/ffmpeg -i "$file" -loop 0 -vf "fps=10,scale=320:-1:flags=lanczos" -c:v gif -y "res/picture/gif/$filename.gif"
+            fi
+          done
 
       - name: List GIF files
         if: env.files_found == 'true'
@@ -53,9 +57,10 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           OWNER_ID: ${{ secrets.OWNER_ID }}
         run: |
-          latest_gif=$(ls -t res/picture/gif/*.gif | head -n 1)
-          if [ -z "$latest_gif" ] || [ "$latest_gif" = "res/picture/gif/test_0000.gif" ]; then
-            echo "No GIF files found."
-            exit 1
-          fi
-          curl -F "chat_id=$OWNER_ID" -F "document=@$latest_gif" https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument
+          for file in res/picture/gif/*.gif
+          do
+            filename=$(basename "$file" .gif)
+            if [ "$filename" != "test_0000" ]; then
+              curl -F "chat_id=$OWNER_ID" -F "document=@$file" https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument
+            fi
+          done

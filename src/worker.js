@@ -8,7 +8,7 @@ import { extractCommand, extractSticker } from './extract.js';
 
 import { getFile, downloadFile } from './getResource.js';
 
-import { trasToGifWithGithubAction } from './githubActions.mjs';
+import { trasToGifWithGithubAction } from './githubActions.js';
 
 const { Buffer } = require('node:buffer');
 
@@ -16,9 +16,9 @@ export default {
 	async fetch(request, env) {
 		const requestBody = await getRequestBody(request);
 		const botToken = env.botToken;
+		const GITHUB_TOKEN = env.GITHUB_TOKEN;
 		const OWNER_ID = env.OWNER_ID;
 		const redis = Redis.fromEnv(env);
-
 		const sticker = extractSticker(requestBody);
 
 		if (sticker) {
@@ -40,7 +40,7 @@ export default {
 				if (sticker.is_video) {
 					// await sendDocumentBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
 					// await sendVideoBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
-					await trasToGifWithGithubAction(fileUrl);
+					await trasToGifWithGithubAction(fileUrl, GITHUB_TOKEN);
 				} else {
 					await sendPhotoBlob(botToken, OWNER_ID, photoBlob, null, 'Sticker echo');
 				}
