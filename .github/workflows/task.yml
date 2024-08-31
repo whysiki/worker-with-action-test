@@ -65,8 +65,10 @@ jobs:
         run: |
           for file in res/picture/gif/*.gif
           do
-            filename=$(basename "$file" .gif)
-            if [ "$filename" != "test_0000" ]; then
-              curl -F "chat_id=$OWNER_ID" -F "document=@$file" https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument
+            if [ -f "$file" ]; then
+              filename=$(basename "$file" .gif)
+              if [ "$filename" != "test_0000" ]; then
+                curl -F "chat_id=$OWNER_ID" -F "document=@$file;type=image/gif;filename=$filename.gif" https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument
+              fi
             fi
           done
