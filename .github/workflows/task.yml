@@ -11,7 +11,13 @@ jobs:
 
     # 如果提交消息包含或者等于'Reset'就不执行
 
-    if: "!contains(github.event.head_commit.message, 'Delete file') && !contains(github.event.head_commit.message, 'Reset')"
+    # Event Message:
+    # Upload Completed
+    # Delete file
+    # Reset
+    # Uploading file
+
+    if: "!contains(github.event.head_commit.message, 'Delete file') && !contains(github.event.head_commit.message, 'Reset') && contains(github.event.head_commit.message, 'Upload Completed')"
     runs-on: ubuntu-latest
 
     steps:
