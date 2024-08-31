@@ -9,6 +9,8 @@ jobs:
   convert:
     # 如果提交消息包含或者等于'Delete file'就不执行
     if: "!contains(github.event.head_commit.message, 'Delete file')"
+    if: "!contains(github.event.head_commit.message, 'Reset')"
+    #git add . && git commit -m "Reset" && git push -f
     runs-on: ubuntu-latest
 
     steps:
