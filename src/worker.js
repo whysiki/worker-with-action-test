@@ -28,7 +28,7 @@ export default {
 			// await sendMessage(botToken, OWNER_ID, file_path);
 
 			const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
-			// await sendMessage(botToken, OWNER_ID, fileUrl);
+			await sendMessage(botToken, OWNER_ID, fileUrl);
 
 			const photoarraybuffer = await downloadFile({ botToken, file_path });
 			const photoBlob = new Blob([Buffer.from(photoarraybuffer)], { type: getMimeType(file_path) });
