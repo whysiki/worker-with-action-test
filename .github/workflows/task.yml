@@ -25,22 +25,22 @@ jobs:
           fi
 
       - name: Set up FFmpeg
-        if: steps.check_files.outputs.files_found == 'true'
+        if: env.files_found == 'true'
         run: chmod +x tools/ffmpeg
 
       - name: Convert WebM to GIF
-        if: steps.check_files.outputs.files_found == 'true'
+        if: env.files_found == 'true'
         run: |
           file=$(ls -t res/video/webm/*.webm | head -n 1)
           filename=$(basename "$file" .webm)
           tools/ffmpeg -i "$file" -loop 0 -vf "fps=10,scale=320:-1:flags=lanczos" -c:v gif -y "res/picture/gif/$filename.gif"
 
       - name: List GIF files
-        if: steps.check_files.outputs.files_found == 'true'
+        if: env.files_found == 'true'
         run: ls -l res/picture/gif
 
       - name: Commit and push GIFs
-        if: steps.check_files.outputs.files_found == 'true'
+        if: env.files_found == 'true'
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           OWNER_ID: ${{ secrets.OWNER_ID }}
