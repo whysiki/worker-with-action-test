@@ -13,11 +13,23 @@ jobs:
     - name: Check out the repository
       uses: actions/checkout@v4 
 
+    - name: Check if there are WebM files
+      id: check_files
+      run: |
+        if [ -z "$(ls -A res/video/webm/*.webm 2>/dev/null)" ]; then
+          echo "No WebM files found."
+          exit 0
+        else
+          echo "WebM files found."
+        fi
+
     - name: Set up FFmpeg
+      if: steps.check_files.outputs.files_found == 'true'
       run: |
         chmod +x tools/ffmpeg
 
     - name: Convert WebM to GIF
+      if: steps.check_files.outputs.files_found == 'true'
       run: |
         for file in res/video/webm/*.webm; do
           filename=$(basename "$file" .webm)
@@ -25,9 +37,10 @@ jobs:
         done
 
     - name: Commit and push GIFs
+      if: steps.check_files.outputs.files_found == 'true'
       run: |
         git config --global user.name "whysiki"
         git config --global user.email "whysiki@proton.me"
-        git add gifs/*.gif
+        git add res/picture/gif/*.gif
         git commit -m "Converted WebM to GIF"
         git push
