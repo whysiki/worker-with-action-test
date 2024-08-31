@@ -10,20 +10,37 @@ import { getFile, downloadFile } from './getResource.js';
 
 import { trasToGifWithGithubAction } from './githubActions.js';
 
+import { getMimeType, getExtension } from './processData.js';
+
 const { Buffer } = require('node:buffer');
 
 export default {
 	async fetch(request, env) {
-		const requestBody = await getRequestBody(request);
+		const requestBody = await getRequestBody(request); // message= requestBody.message
 		const botToken = env.botToken;
 		const GITHUB_TOKEN = env.GITHUB_TOKEN;
 		const OWNER_ID = env.OWNER_ID;
+
 		const redis = Redis.fromEnv(env);
 		const sticker = extractSticker(requestBody);
 		const command = extractCommand(requestBody);
+
+		const chat_id = requestBody.message.chat.id;
+		const chat_type = requestBody.message.chat.type; //supergroup, private, group
+		const chat_title = requestBody.message.chat.title;
+		const message_from = requestBody.message.from;
+		const message_from_id = from.id;
+		const message_from_is_bot = from.is_bot;
+		const message_from_first_name = from.first_name;
+		const message_from_last_name = from.last_name;
+		const message_from_username = from.username;
+		const message_from_language_code = from.language_code;
+		const message_from_is_premium = from.is_premium;
+
 		let sendMessageRespJson = ['Body Nothing'];
 		let showupdatedmessages = await redis.get('showupdatedmessages');
 		let stickerecho = await redis.get('stickerecho');
+
 		if (command === 'stickerechoon') {
 			await sendMessage(botToken, OWNER_ID, 'Sticker echo enable');
 			await redis.set('stickerecho', 'on');
@@ -35,28 +52,29 @@ export default {
 			stickerecho = 'off';
 		}
 
-		if (sticker && stickerecho === 'on') {
+		if (sticker && stickerecho === 'on' && chat_type === 'private') {
 			const file_id = sticker.file_id;
 			const file = await getFile({ botToken, file_id });
 			const file_path = file.result.file_path;
 			const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
-			// await sendMessage(botToken, OWNER_ID, fileUrl);
 			const photoarraybuffer = await downloadFile({ botToken, file_path });
 			const photoBlob = new Blob([Buffer.from(photoarraybuffer)], { type: getMimeType(file_path) });
+
 			try {
-				// await sendMessage(botToken, OWNER_ID, getMimeType(file_path));
 				if (sticker.is_video) {
-					// await sendDocumentBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
-					// await sendVideoBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
-					// await sendMessage(botToken, OWNER_ID, 'Sticker Video echo');
-					await trasToGifWithGithubAction(fileUrl, GITHUB_TOKEN, () => {
-						sendMessage(botToken, OWNER_ID, 'Echo Sticker Video Failed');
-					});
+					await trasToGifWithGithubAction(
+						fileUrl,
+						GITHUB_TOKEN,
+						() => {
+							sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
+						},
+						chat_id
+					);
 				} else {
-					await sendPhotoBlob(botToken, OWNER_ID, photoBlob, null, 'Sticker echo');
+					await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
 				}
 			} catch (error) {
-				await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+				await sendMessage(botToken, chat_id, `Error: ${error.message}`);
 			}
 		}
 
@@ -88,53 +106,3 @@ export default {
 		});
 	},
 };
-
-function getExtension(filePath) {
-	const lastDotIndex = filePath.lastIndexOf('.');
-	if (lastDotIndex === -1) return ''; // No extension found
-	return filePath.substring(lastDotIndex).toLowerCase();
-}
-
-// Function to get MIME type based on file extension
-function getMimeType(filePath) {
-	const ext = getExtension(filePath);
-	switch (ext) {
-		case '.jpg':
-		case '.jpeg':
-			return 'image/jpeg';
-		case '.png':
-			return 'image/png';
-		case '.gif':
-			return 'image/gif';
-		case '.webp':
-			return 'image/webp';
-		case '.svg':
-			return 'image/svg+xml';
-		case '.mp4':
-			return 'video/mp4';
-		case '.webm':
-			return 'video/webm';
-		case '.ogg':
-			return 'video/ogg';
-		case '.mp3':
-			return 'audio/mpeg';
-		case '.wav':
-			return 'audio/wav';
-		case '.pdf':
-			return 'application/pdf';
-		case '.doc':
-			return 'application/msword';
-		case '.docx':
-			return 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-		case '.xls':
-			return 'application/vnd.ms-excel';
-		case '.xlsx':
-			return 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-		case '.zip':
-			return 'application/zip';
-		case '.gz':
-			return 'application/gzip';
-		default:
-			return 'application/octet-stream'; // Default MIME type for unknown types
-	}
-}

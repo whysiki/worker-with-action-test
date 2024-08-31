@@ -5,7 +5,7 @@ const GITHUB_DIR_PATH = 'res/video/webm'; // 仓库中目标目录的路径
 const GITHUB_DIR_PATH_OUTPUT = 'res/picture/gif'; // 仓库中目标目录的路径
 
 // 执行步骤
-export async function trasToGifWithGithubAction(IMAGE_URL_Array_or_Single, API_TOKEN, Failed_Callback_Function) {
+export async function trasToGifWithGithubAction(IMAGE_URL_Array_or_Single, API_TOKEN, Failed_Callback_Function, ChatId) {
 	// 获取远程目录中的文件列表
 	async function getFilesInDirectory(owner, repo, directoryPath) {
 		const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${directoryPath}`;
@@ -139,12 +139,15 @@ export async function trasToGifWithGithubAction(IMAGE_URL_Array_or_Single, API_T
 			// 先拿出一个当做末尾的文件，只有其他文件上传完毕后才能上传这个文件
 			const lastUrl = IMAGE_URL_Array_or_Single.pop();
 			for (let i = 0; i < IMAGE_URL_Array_or_Single.length; i++) {
-				await uploadFileToGitHubFromUrl(IMAGE_URL_Array_or_Single[i], generateRandomString(7) + '.webm');
+				const file_name = ChatId + '__' + generateRandomString(7) + '.webm';
+				await uploadFileToGitHubFromUrl(IMAGE_URL_Array_or_Single[i], file_name);
 			}
-			await uploadFileToGitHubFromUrl(lastUrl, generateRandomString(7) + '.webm', 'Upload Completed');
+			const file_name = ChatId + '__' + generateRandomString(7) + '.webm';
+			await uploadFileToGitHubFromUrl(lastUrl, file_name, 'Upload Completed');
 		} else if (typeof IMAGE_URL_Array_or_Single === 'string') {
 			// 上传文件到 GitHub
-			await uploadFileToGitHubFromUrl(IMAGE_URL_Array_or_Single, generateRandomString(7) + '.webm', 'Upload Completed');
+			const file_name = ChatId + '__' + generateRandomString(7) + '.webm';
+			await uploadFileToGitHubFromUrl(IMAGE_URL_Array_or_Single, file_name, 'Upload Completed');
 		} else {
 			console.log('Error: IMAGE_URL_Array_or_Single is not a valid type');
 			Failed_Callback_Function();

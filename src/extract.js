@@ -24,3 +24,26 @@ export const extractSticker = (message) => {
 	}
 	return null;
 };
+
+// {
+// 	"update_id": 582562749,
+// 	"message": {
+// 	  "message_id": 27,
+// 	  "from": {
+// 		"id": 6315542418,
+// 		"is_bot": false,
+// 		"first_name": "jsp",
+// 		"last_name": "dmx",
+// 		"username": "gffxg148944637",
+// 		"language_code": "zh-hans",
+// 		"is_premium": true
+// 	  },
+// 	  "chat": {
+// 		"id": -1002065535396,
+// 		"title": "Self.__inform",
+// 		"type": "supergroup"
+// 	  },
+// 	  "date": 1725113174,
+// 	  "text": "😞"
+// 	}
+//   }
