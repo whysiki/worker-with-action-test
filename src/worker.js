@@ -8,6 +8,8 @@ import { extractCommand, extractSticker } from './extract.js';
 
 import { getFile, downloadFile } from './getResource.js';
 
+import { trasToGifWithGithubAction } from './githubActions.mjs';
+
 const { Buffer } = require('node:buffer');
 
 export default {
@@ -36,8 +38,9 @@ export default {
 			try {
 				await sendMessage(botToken, OWNER_ID, getMimeType(file_path));
 				if (sticker.is_video) {
-					await sendDocumentBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
+					// await sendDocumentBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
 					// await sendVideoBlob(botToken, OWNER_ID, photoBlob, 'sticker.webm', 'Sticker Video echo');
+					await trasToGifWithGithubAction(fileUrl);
 				} else {
 					await sendPhotoBlob(botToken, OWNER_ID, photoBlob, null, 'Sticker echo');
 				}

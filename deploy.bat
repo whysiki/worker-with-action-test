@@ -1,3 +1,3 @@
-python script.py https://tgbot-whysiki.oooplhhhg.workers.dev
+python webhook.py https://tgbot-whysiki.oooplhhhg.workers.dev
 
-wrangler deploy
+@REM wrangler deploy
