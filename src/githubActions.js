@@ -5,7 +5,16 @@ const GITHUB_DIR_PATH = 'res/video/webm'; // 仓库中目标目录的路径
 const GITHUB_DIR_PATH_OUTPUT = 'res/picture/gif'; // 仓库中目标目录的路径
 
 // 执行步骤
-export async function trasToGifWithGithubAction(IMAGE_URL_Array_or_Single, API_TOKEN, Failed_Callback_Function, ChatId) {
+export async function trasToGifWithGithubAction(
+	IMAGE_URL_Array_or_Single,
+	API_TOKEN,
+	Failed_Callback_Function,
+	ChatId,
+	REPO_OWNER,
+	REPO_NAME,
+	GITHUB_DIR_PATH,
+	GITHUB_DIR_PATH_OUTPUT
+) {
 	// 获取远程目录中的文件列表
 	async function getFilesInDirectory(owner, repo, directoryPath) {
 		const apiUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${directoryPath}`;

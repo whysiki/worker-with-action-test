@@ -13,7 +13,8 @@ import { handleDependencyInjectionCommands, initializeDependInjectionCommands } 
 export default {
 	async fetch(request, env) {
 		const requestBody = await getRequestBody(request);
-		const { botToken, GITHUB_TOKEN, OWNER_ID, redis } = extractEnvVariables(env);
+		const { botToken, GITHUB_TOKEN, OWNER_ID, redis, REPO_OWNER, REPO_NAME, GITHUB_DIR_PATH, GITHUB_DIR_PATH_OUTPUT } =
+			extractEnvVariables(env);
 		if (!verifyWebhookSecretToken(env, request)) {
 			await sendMessage(botToken, OWNER_ID, 'Unauthorized WebhookSecretToken', 'Markdown');
 			return new Response('Unauthorized', { status: 401 });
@@ -74,7 +75,18 @@ export default {
 			return response;
 		}
 
-		await handleStickerEcho(sticker, commandState.stickerecho, chat_type, botToken, chat_id, GITHUB_TOKEN);
+		await handleStickerEcho(
+			sticker,
+			commandState.stickerecho,
+			chat_type,
+			botToken,
+			chat_id,
+			GITHUB_TOKEN,
+			REPO_OWNER,
+			REPO_NAME,
+			GITHUB_DIR_PATH,
+			GITHUB_DIR_PATH_OUTPUT
+		);
 
 		await handleStickerSetEcho(sticker, commandState.stickersetecho, chat_type, botToken, chat_id, GITHUB_TOKEN);
 
@@ -102,6 +114,10 @@ const extractEnvVariables = (env) => ({
 	GITHUB_TOKEN: env.GITHUB_TOKEN,
 	OWNER_ID: env.OWNER_ID,
 	redis: Redis.fromEnv(env),
+	REPO_OWNER: env.REPO_OWNER, //'whysiki';
+	REPO_NAME: env.REPO_NAME, //'worker-with-action-test';
+	GITHUB_DIR_PATH: env.GITHUB_DIR_PATH, //'res/video/webm'; // 仓库中目标目录的路径
+	GITHUB_DIR_PATH_OUTPUT: env.GITHUB_DIR_PATH_OUTPUT, //'res/picture/gif'; // 仓库中目标目录的路径
 });
 
 //默认处理其他文本消息

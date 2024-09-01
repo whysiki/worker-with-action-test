@@ -54,7 +54,18 @@ export const handleCommands = async (command, botToken, chat_id, OWNER_ID, redis
 	}
 };
 
-export const handleStickerEcho = async (sticker, stickerecho, chat_type, botToken, chat_id, GITHUB_TOKEN) => {
+export const handleStickerEcho = async (
+	sticker,
+	stickerecho,
+	chat_type,
+	botToken,
+	chat_id,
+	GITHUB_TOKEN,
+	REPO_OWNER,
+	REPO_NAME,
+	GITHUB_DIR_PATH,
+	GITHUB_DIR_PATH_OUTPUT
+) => {
 	if (sticker && stickerecho === 'on' && chat_type === 'private') {
 		const file_id = sticker.file_id;
 		const file = await getFile({ botToken, file_id });
@@ -71,7 +82,11 @@ export const handleStickerEcho = async (sticker, stickerecho, chat_type, botToke
 					() => {
 						sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
 					},
-					chat_id
+					chat_id,
+					REPO_OWNER,
+					REPO_NAME,
+					GITHUB_DIR_PATH,
+					GITHUB_DIR_PATH_OUTPUT
 				);
 			} else {
 				await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
