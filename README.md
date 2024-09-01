@@ -1,11 +1,11 @@
 ## 使用 Telegram Bot Webhook 与 Cloudflare Workers 以及 GitHub Actions 尝试搭建免费快速的无服务器 Telegram Bot
 
-- Telegram Bot Webhook：使用 Telegram Bot Webhook 与 Cloudflare Workers 实现无服务器的 Telegram Bot。
-- 无状态与状态管理：Cloudflare Workers 几乎是无状态的，借助 Upstash Redis，可以实现无服务器的状态管理。
-- 依赖注入命令：利用 Redis 实现依赖注入的命令处理机制，便于管理和扩展。
-- 本地开发与调试：利用 Wrangler 在本地开发 Cloudflare Workers，并通过 Cloudflare Tunnel 实现内网穿透，方便测试和调试。
-- 原生 API 支持：Cloudflare Workers 对 Node.js 的支持有限，不能使用 Telegraf 等框架，只能利用原生 Telegram Bot API 实现功能。
-- 任务处理：对于 要使用CPU 和内存密集型的任务，Cloudflare Workers 并不适合，可以利用 GitHub Actions 实现无服务器的定时任务或触发任务。
+- Cloudflare Workers每天有免费的10万次请求，对于小型bot足够了。
+- 使用 Telegram Bot Webhook 与 Cloudflare Workers 实现无服务器的 Telegram Bot。
+- Cloudflare Workers 几乎是无状态的，但借助 Upstash Redis，可以实现无服务器的状态管理，以及依赖注入的命令处理机制
+- 利用 Wrangler 在本地开发 Cloudflare Workers，并通过 Cloudflare Tunnel 实现内网穿透，方便测试和调试。
+- Cloudflare Workers 对 Node.js 的支持有限，不能使用 Telegraf 等框架，只能利用原生 Telegram Bot API 实现功能。
+- 对于 要使用CPU 和内存密集型的任务，Cloudflare Workers 并不适合，可以利用 GitHub Actions 实现无服务器的定时任务或触发任务。
 - 结论：配置麻烦，继续加功能的话，可能会变得更复杂，倒是可以省钱不买服务器,也不用担心带宽问题。
 
 
