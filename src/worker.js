@@ -1,7 +1,7 @@
 'use strict';
 
 import { Redis } from '@upstash/redis/cloudflare';
-import { sendMessage, sendPhotoBlob } from './send.js';
+import { sendMessage, sendPhotoBlob, sendPhoto } from './send.js';
 import { getRequestBody } from './getRequest.js';
 import { extractCommand, extractSticker } from './extract.js';
 import { getFile, downloadFile } from './getResource.js';
@@ -143,18 +143,26 @@ const handleDependencyInjectionCommands = async (
 	redis,
 	command
 ) => {
+	const setDependInjectionState = async (chat_id, command, message) => {
+		await sendMessage(botToken, chat_id, message);
+		await redis.set(
+			`DependInjectionCommandState:${chat_id}`,
+			JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
+		);
+	};
+
 	if (DependInjectionCommandState) {
 		try {
-			const DependInjectionCommandStateObj = DependInjectionCommandState;
-			const command = DependInjectionCommandStateObj?.command;
-			const status = DependInjectionCommandStateObj?.status;
-			const HandleInputFunction = DependInjectionCommands[command]?.HandleInputFunction;
-			const ImplementFunction = DependInjectionCommands[command]?.ImplementFunction;
+			const { command, status } = DependInjectionCommandState;
+			const { HandleInputFunction, ImplementFunction } = DependInjectionCommands[command] || {};
 
-			if (command && DependInjectionCommands[command] && HandleInputFunction && ImplementFunction) {
-				if (status === 'waiting_for_input' && (command === 'greet' || command === 'texttoimage')) {
+			if (command && HandleInputFunction && ImplementFunction && status === 'waiting_for_input') {
+				if (command === 'greet' || command === 'texttoimage') {
 					const messagePlainText = await HandleInputFunction();
 					await ImplementFunction(messagePlainText);
+				} else if (command === 'imagetotext') {
+					const [photo_id, caption] = await HandleInputFunction();
+					await ImplementFunction(photo_id, caption);
 				}
 			}
 		} catch (error) {
@@ -165,23 +173,22 @@ const handleDependencyInjectionCommands = async (
 			return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
 		}
 	}
+
 	if (command && DependInjectionCommands[command] && chat_id) {
-		if (command === 'greet' && chat_id && botToken) {
-			await sendMessage(botToken, chat_id, 'Please input your name');
-			await redis.set(
-				`DependInjectionCommandState:${chat_id}`,
-				JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
-			);
-		}
-		if (command === 'texttoimage' && chat_id && botToken) {
-			await sendMessage(botToken, chat_id, 'Please input your text');
-			await redis.set(
-				`DependInjectionCommandState:${chat_id}`,
-				JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
-			);
+		switch (command) {
+			case 'greet':
+				await setDependInjectionState(chat_id, command, 'Please input your name');
+				break;
+			case 'texttoimage':
+				await setDependInjectionState(chat_id, command, 'Please input your text');
+				break;
+			case 'imagetotext':
+				await setDependInjectionState(chat_id, command, 'Please send a photo with a caption');
+				break;
 		}
 		return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
 	}
+
 	return { handled: false };
 };
 
@@ -189,8 +196,12 @@ export default {
 	async fetch(request, env) {
 		const requestBody = await getRequestBody(request);
 		const { botToken, GITHUB_TOKEN, OWNER_ID, redis } = extractEnvVariables(env);
-		const sticker = extractSticker(requestBody);
+		const sticker = extractSticker(requestBody); //sticker object
 		const command = extractCommand(requestBody);
+
+		const photo = requestBody?.message?.photo; //photo array[object]
+		const photo_id_array = photo && photo.length > 0 ? [...new Set(photo.map((item) => item.file_id))] : null;
+		const caption = requestBody?.message?.caption; //string
 
 		const chat_id = requestBody?.message?.chat?.id;
 		const chat_type = requestBody?.message?.chat?.type;
@@ -261,6 +272,40 @@ export default {
 						const arrayBuffer = await response2.arrayBuffer();
 						const photoBlob = new Blob([arrayBuffer], { type: 'image/png' });
 						await sendPhotoBlob(botToken, chat_id, photoBlob, null, messagePlainText);
+					} catch (error) {
+						await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+					}
+				},
+			},
+			imagetotext: {
+				HandleInputFunction: async () => {
+					if (caption && photo_id_array && photo_id_array.length > 0 && chat_id && botToken) {
+						return [photo_id_array[0], caption];
+					} else {
+						await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+						throw new Error('ErrorInputFormat');
+					}
+				},
+
+				ImplementFunction: async (photo_id, caption) => {
+					try {
+						const file = await getFile({ botToken, file_id: photo_id });
+						const file_path = file.result.file_path;
+						const photoarraybuffer = await downloadFile({ botToken, file_path });
+						const input = {
+							image: [...new Uint8Array(photoarraybuffer)],
+							prompt: caption,
+							max_tokens: 512,
+						};
+						const response = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', input);
+						// {
+						// 	"description": "....",
+						//   }
+						if (response.description) {
+							await sendMessage(botToken, chat_id, response.description);
+						} else {
+							await sendMessage(botToken, chat_id, `\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\``, 'Markdown');
+						}
 					} catch (error) {
 						await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
 					}
