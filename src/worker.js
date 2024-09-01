@@ -93,6 +93,7 @@ const extractEnvVariables = (env) => ({
 	redis: Redis.fromEnv(env),
 });
 
+//默认处理其他文本消息
 const handleMessageProcessing = async (messagePlainText, env, botToken, chat_id) => {
 	if (messagePlainText) {
 		let chat = {

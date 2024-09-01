@@ -45,14 +45,14 @@ def set_command_menu():
             "command": "stickerEchoOff".lower(),  # stickerechooff
             "description": "Sticker echo off",
         },
-        {
-            "command": "stickerSetEchoOn".lower(),  #
-            "description": "Echo All Stickers on",
-        },
-        {
-            "command": "stickerSetEchoOff".lower(),  #
-            "description": "Echo All Stickers off",
-        },
+        # {
+        #     "command": "stickerSetEchoOn".lower(),  #
+        #     "description": "Echo All Stickers on",
+        # },
+        # {
+        #     "command": "stickerSetEchoOff".lower(),  #
+        #     "description": "Echo All Stickers off",
+        # },
         {
             "command": "greet".lower(),
             "description": "Greet user",
