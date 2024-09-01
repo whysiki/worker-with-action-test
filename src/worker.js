@@ -160,7 +160,7 @@ const handleDependencyInjectionCommands = async (
 				if (command === 'greet' || command === 'texttoimage') {
 					const messagePlainText = await HandleInputFunction();
 					await ImplementFunction(messagePlainText);
-				} else if (command === 'imagetotext') {
+				} else if (command === 'imagetotext' || command === 'image2image') {
 					const [photo_id, caption] = await HandleInputFunction();
 					await ImplementFunction(photo_id, caption);
 				}
@@ -183,6 +183,9 @@ const handleDependencyInjectionCommands = async (
 				await setDependInjectionState(chat_id, command, 'Please input your text');
 				break;
 			case 'imagetotext':
+				await setDependInjectionState(chat_id, command, 'Please send a photo with a caption');
+				break;
+			case 'image2image':
 				await setDependInjectionState(chat_id, command, 'Please send a photo with a caption');
 				break;
 		}
@@ -298,9 +301,6 @@ export default {
 							max_tokens: 512,
 						};
 						const response = await env.AI.run('@cf/llava-hf/llava-1.5-7b-hf', input);
-						// {
-						// 	"description": "....",
-						//   }
 						if (response.description) {
 							await sendMessage(botToken, chat_id, response.description);
 						} else {
@@ -311,10 +311,37 @@ export default {
 					}
 				},
 			},
+			image2image: {
+				HandleInputFunction: async () => {
+					if (caption && photo_id_array && photo_id_array.length > 0 && chat_id && botToken) {
+						return [photo_id_array[0], caption];
+					} else {
+						await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+						throw new Error('ErrorInputFormat');
+					}
+				},
+				ImplementFunction: async (photo_id, caption) => {
+					try {
+						const file = await getFile({ botToken, file_id: photo_id });
+						const file_path = file.result.file_path;
+						const photoarraybuffer = await downloadFile({ botToken, file_path });
+						const input = {
+							prompt: caption,
+							image: [...new Uint8Array(photoarraybuffer)],
+						};
+						const response = await env.AI.run('@cf/runwayml/stable-diffusion-v1-5-img2img', input); //image to image
+						const response2 = new Response(response, { headers: { 'content-type': 'image/png' } });
+						const arrayBuffer = await response2.arrayBuffer();
+						const photoBlob = new Blob([arrayBuffer], { type: 'image/png' });
+						await sendPhotoBlob(botToken, chat_id, photoBlob, null, caption);
+					} catch (error) {
+						await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+					}
+				},
+			},
 		};
 
 		if (!chat_id) {
-			// await sendMessage(botToken, OWNER_ID, 'No chat_id');
 			return new Response('Nothing', { status: 400 });
 		}
 
