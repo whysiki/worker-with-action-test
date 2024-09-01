@@ -1,56 +1,217 @@
 'use strict';
 
 import { Redis } from '@upstash/redis/cloudflare';
-
-import { sendMessage, sendPhoto, sendPhotoBlob, sendDocumentBlob, sendDocument, sendVideoBlob, sendMediaGroup } from './send.js';
-
+import { sendMessage, sendPhotoBlob } from './send.js';
 import { getRequestBody } from './getRequest.js';
-
 import { extractCommand, extractSticker } from './extract.js';
-
-import { getFile, downloadFile, getStickerSet } from './getResource.js';
-
+import { getFile, downloadFile } from './getResource.js';
 import { trasToGifWithGithubAction } from './githubActions.js';
-
-import { getMimeType, getExtension } from './processData.js';
+import { getMimeType } from './processData.js';
 
 const { Buffer } = require('node:buffer');
 
+const extractEnvVariables = (env) => ({
+	botToken: env.botToken,
+	GITHUB_TOKEN: env.GITHUB_TOKEN,
+	OWNER_ID: env.OWNER_ID,
+	redis: Redis.fromEnv(env),
+});
+
+//一次性处理命令
+const handleCommands = async (command, botToken, chat_id, OWNER_ID, redis) => {
+	const updateStateAndNotify = async (botToken, chat_id, redis, updates, message) => {
+		for (const [key, value] of Object.entries(updates)) {
+			await redis.set(key, value);
+		}
+		if (message) {
+			await sendMessage(botToken, chat_id, message);
+		}
+	};
+	switch (command) {
+		case 'stickerechoon':
+			await updateStateAndNotify(botToken, OWNER_ID, redis, { stickerecho: 'on' }, 'Sticker echo enable');
+			break;
+		case 'stickerechooff':
+			await updateStateAndNotify(botToken, OWNER_ID, redis, { stickerecho: 'off' }, 'Sticker echo disable');
+			break;
+		case 'stickersetechoon':
+			await updateStateAndNotify(
+				botToken,
+				chat_id,
+				redis,
+				{ stickersetecho: 'on', stickerecho: 'off' },
+				'Stickersetecho Command was deprecated'
+			);
+			break;
+		case 'stickersetechooff':
+			await updateStateAndNotify(botToken, OWNER_ID, redis, { stickersetecho: 'off' }, 'Stickersetecho Command was deprecated');
+			break;
+		case 'showupdatedmessageson':
+			await updateStateAndNotify(botToken, OWNER_ID, redis, { showupdatedmessages: 'on' }, 'showUpdatedMessagesOn enable');
+			break;
+		case 'showupdatedmessagesoff':
+			await updateStateAndNotify(botToken, OWNER_ID, redis, { showupdatedmessages: 'off' }, 'showUpdatedMessagesOff disable');
+			break;
+		case 'allclose':
+			await updateStateAndNotify(
+				botToken,
+				OWNER_ID,
+				redis,
+				{
+					stickerecho: 'off',
+					stickersetecho: 'off',
+					showupdatedmessages: 'off',
+				},
+				'All close'
+			);
+			break;
+	}
+};
+
+const handleStickerEcho = async (sticker, stickerecho, chat_type, botToken, chat_id, GITHUB_TOKEN) => {
+	if (sticker && stickerecho === 'on' && chat_type === 'private') {
+		const file_id = sticker.file_id;
+		const file = await getFile({ botToken, file_id });
+		const file_path = file.result.file_path;
+		const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
+		const photoarraybuffer = await downloadFile({ botToken, file_path });
+		const photoBlob = new Blob([Buffer.from(photoarraybuffer)], { type: getMimeType(file_path) });
+
+		try {
+			if (sticker.is_video) {
+				await trasToGifWithGithubAction(
+					fileUrl,
+					GITHUB_TOKEN,
+					() => {
+						sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
+					},
+					chat_id
+				);
+			} else {
+				await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
+			}
+		} catch (error) {
+			await sendMessage(botToken, chat_id, `Error: ${error.message}`);
+		}
+	}
+};
+
+const handleStickerSetEcho = async (sticker, stickersetecho, chat_type, botToken, chat_id, GITHUB_TOKEN) => {
+	if (sticker && stickersetecho === 'on' && chat_type === 'private') {
+		await sendMessage(botToken, chat_id, 'Stickersetecho Command was deprecated');
+	}
+};
+
+const handleShowUpdatedMessages = async (showupdatedmessages, requestBody, botToken, OWNER_ID) => {
+	if (showupdatedmessages === 'on' && requestBody) {
+		const sendMessageRespJson = await sendMessage(
+			botToken,
+			OWNER_ID,
+			`\`\`\`json\n${JSON.stringify(requestBody, null, 2)}\n\`\`\``,
+			'Markdown'
+		);
+		return new Response(JSON.stringify(sendMessageRespJson, null, 2), { headers: { 'Content-Type': 'application/json' } });
+	}
+};
+
+const handleMessageProcessing = async (messagePlainText, env, botToken, chat_id) => {
+	if (messagePlainText) {
+		let chat = {
+			messages: [
+				{
+					role: 'system',
+					content:
+						'You are a bubbly little girl, playful and proud, who likes to be sarcastic, but pretends to be reluctant to reply or help others.When someone asks a vulgar question, he will use sarcasm, and likes to express emotion or emoticon',
+				},
+				{ role: 'user', content: messagePlainText },
+			],
+		};
+		const response = await env.AI.run('@cf/meta/llama-3-8b-instruct', chat);
+		const responseText = response.response;
+
+		await sendMessage(botToken, chat_id, responseText, 'Markdown');
+	}
+};
+
+//一旦处理命令或者进入依赖注入命令，就不会再处理其他命令或者消息
+const handleDependencyInjectionCommands = async (
+	DependInjectionCommandState,
+	DependInjectionCommands,
+	botToken,
+	chat_id,
+	OWNER_ID,
+	redis,
+	command
+) => {
+	if (DependInjectionCommandState) {
+		try {
+			const DependInjectionCommandStateObj = DependInjectionCommandState;
+			const command = DependInjectionCommandStateObj?.command;
+			const status = DependInjectionCommandStateObj?.status;
+			const HandleInputFunction = DependInjectionCommands[command]?.HandleInputFunction;
+			const ImplementFunction = DependInjectionCommands[command]?.ImplementFunction;
+
+			if (command && DependInjectionCommands[command] && HandleInputFunction && ImplementFunction) {
+				if (status === 'waiting_for_input' && (command === 'greet' || command === 'texttoimage')) {
+					const messagePlainText = await HandleInputFunction();
+					await ImplementFunction(messagePlainText);
+				}
+			}
+		} catch (error) {
+			await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+		} finally {
+			if (chat_id && botToken) await sendMessage(botToken, chat_id, 'DependInjectionCommandState Done');
+			await redis.del(`DependInjectionCommandState:${chat_id}`);
+			return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
+		}
+	}
+	if (command && DependInjectionCommands[command] && chat_id) {
+		if (command === 'greet' && chat_id && botToken) {
+			await sendMessage(botToken, chat_id, 'Please input your name');
+			await redis.set(
+				`DependInjectionCommandState:${chat_id}`,
+				JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
+			);
+		}
+		if (command === 'texttoimage' && chat_id && botToken) {
+			await sendMessage(botToken, chat_id, 'Please input your text');
+			await redis.set(
+				`DependInjectionCommandState:${chat_id}`,
+				JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
+			);
+		}
+		return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
+	}
+	return { handled: false };
+};
+
 export default {
 	async fetch(request, env) {
-		const requestBody = await getRequestBody(request); // message= requestBody.message
-		const botToken = env.botToken;
-		const GITHUB_TOKEN = env.GITHUB_TOKEN;
-		const OWNER_ID = env.OWNER_ID;
-
-		const redis = Redis.fromEnv(env);
-		const sticker = extractSticker(requestBody); //sticker object
+		const requestBody = await getRequestBody(request);
+		const { botToken, GITHUB_TOKEN, OWNER_ID, redis } = extractEnvVariables(env);
+		const sticker = extractSticker(requestBody);
 		const command = extractCommand(requestBody);
 
 		const chat_id = requestBody?.message?.chat?.id;
-		const chat_type = requestBody?.message?.chat?.type; //supergroup, private, group
-		const chat_title = requestBody?.message?.chat?.title;
-		const message_from = requestBody?.message?.from;
-		const message_from_id = message_from?.id;
-		const message_from_is_bot = message_from?.is_bot;
-		const message_from_first_name = message_from?.first_name;
-		const message_from_last_name = message_from?.last_name;
-		const message_from_username = message_from?.username;
-		const message_from_language_code = message_from?.language_code;
-		const message_from_is_premium = message_from?.is_premium;
-
+		const chat_type = requestBody?.message?.chat?.type;
 		const messagePlainText = !sticker && !command ? requestBody?.message?.text : null;
 
-		// await sendMessage(botToken, OWNER_ID, command);
-		// await sendMessage(botToken, OWNER_ID, messagePlainText);
-
-		let sendMessageRespJson = ['Body Nothing'];
-		let showupdatedmessages = await redis.get('showupdatedmessages');
-		let stickerecho = await redis.get('stickerecho');
-		let stickersetecho = await redis.get('stickersetecho');
+		//处理命令
+		await handleCommands(command, botToken, chat_id, OWNER_ID, redis);
+		//获取命令状态
+		// 使用 mget 一次性获取多个键的值
+		const keys = ['stickerecho', 'stickersetecho', 'showupdatedmessages'];
+		const values = await redis.mget(keys);
+		// 设置默认值并构建 commandState
+		const commandState = {
+			stickerecho: values[0] || 'off',
+			stickersetecho: values[1] || 'off',
+			showupdatedmessages: values[2] || 'off',
+		};
 
 		const DependInjectionCommandState = await redis.get(`DependInjectionCommandState:${chat_id}`);
 
+		//依赖注入命令
 		const DependInjectionCommands = {
 			greet: {
 				HandleInputFunction: async () => {
@@ -94,19 +255,11 @@ export default {
 				},
 				ImplementFunction: async (messagePlainText) => {
 					try {
-						const inputs = {
-							prompt: messagePlainText,
-						};
+						const inputs = { prompt: messagePlainText };
 						const response = await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', inputs);
-						const response2 = new Response(response, {
-							headers: {
-								'content-type': 'image/png',
-							},
-						});
+						const response2 = new Response(response, { headers: { 'content-type': 'image/png' } });
 						const arrayBuffer = await response2.arrayBuffer();
-
 						const photoBlob = new Blob([arrayBuffer], { type: 'image/png' });
-
 						await sendPhotoBlob(botToken, chat_id, photoBlob, null, messagePlainText);
 					} catch (error) {
 						await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
@@ -115,228 +268,33 @@ export default {
 			},
 		};
 
-		if (DependInjectionCommandState) {
-			try {
-				const DependInjectionCommandStateObj = DependInjectionCommandState;
-				const command = DependInjectionCommandStateObj?.command;
-				const status = DependInjectionCommandStateObj?.status;
-				const HandleInputFunction = DependInjectionCommands[command]?.HandleInputFunction;
-				const ImplementFunction = DependInjectionCommands[command]?.ImplementFunction;
-				const middledatas = DependInjectionCommandStateObj?.middledatas;
-
-				if (command && DependInjectionCommands[command] && HandleInputFunction && ImplementFunction) {
-					if (command === 'greet' && status === 'waiting_for_input') {
-						const messagePlainText = await HandleInputFunction();
-						await ImplementFunction(messagePlainText);
-					}
-					if (command === 'texttoimage' && status === 'waiting_for_input') {
-						const messagePlainText = await HandleInputFunction();
-						await ImplementFunction(messagePlainText);
-					}
-				}
-				if (chat_id && botToken) await sendMessage(botToken, chat_id, 'DependInjectionCommandState Done');
-			} catch (error) {
-				await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
-			} finally {
-				await redis.del(`DependInjectionCommandState:${chat_id}`);
-				return new Response('DependInjectionCommandState Done', { status: 200 });
-			}
-		} else {
-			if (command && DependInjectionCommands[command] && chat_id) {
-				// 设置初始状态, 一旦接受依赖注入的command, 就设置为waiting_for_input状态
-				if (command === 'greet' && chat_id && botToken) {
-					await sendMessage(botToken, chat_id, 'Please input your name');
-					await redis.set(
-						`DependInjectionCommandState:${chat_id}`,
-						JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
-					);
-				}
-				if (command === 'texttoimage' && chat_id && botToken) {
-					await sendMessage(botToken, chat_id, 'Please input your text');
-					await redis.set(
-						`DependInjectionCommandState:${chat_id}`,
-						JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
-					);
-				}
-				return new Response('DependInjectionCommandState Done', { status: 200 });
-			}
-		}
-
 		if (!chat_id) {
-			await sendMessage(botToken, OWNER_ID, 'No chat_id');
-			return new Response('No chat_id', { status: 400 });
+			// await sendMessage(botToken, OWNER_ID, 'No chat_id');
+			return new Response('Nothing', { status: 400 });
 		}
 
-		if (messagePlainText) {
-			// await sendMessage(botToken, chat_id, messagePlainText, 'Markdown');
+		const { handled, response } = await handleDependencyInjectionCommands(
+			DependInjectionCommandState,
+			DependInjectionCommands,
+			botToken,
+			chat_id,
+			OWNER_ID,
+			redis,
+			command
+		);
 
-			let chat = {
-				messages: [
-					{
-						role: 'system',
-						content:
-							'You are a bubbly little girl, playful and proud, who likes to be sarcastic, but pretends to be reluctant to reply or help others.When someone asks a vulgar question, he will use sarcasm, and likes to express emotion or emoticon',
-					},
-					{ role: 'user', content: messagePlainText },
-				],
-			};
-			const response = await env.AI.run('@cf/meta/llama-3-8b-instruct', chat);
-			const responseText = response.response;
-
-			await sendMessage(botToken, chat_id, responseText, 'Markdown');
+		if (handled) {
+			return response;
 		}
 
-		if (command === 'stickerechoon') {
-			await sendMessage(botToken, OWNER_ID, 'Sticker echo enable');
-			await redis.set('stickerecho', 'on');
-			stickerecho = 'on';
-		}
-		if (command === 'stickerechooff') {
-			await sendMessage(botToken, OWNER_ID, 'Sticker echo disable');
-			await redis.set('stickerecho', 'off');
-			stickerecho = 'off';
-		}
+		await handleStickerEcho(sticker, commandState.stickerecho, chat_type, botToken, chat_id, GITHUB_TOKEN);
 
-		if (command === 'stickersetechoon') {
-			await sendMessage(botToken, OWNER_ID, 'disable');
-			await redis.set('stickersetecho', 'on');
-			stickersetecho = 'on';
-		}
+		await handleStickerSetEcho(sticker, commandState.stickersetecho, chat_type, botToken, chat_id, GITHUB_TOKEN);
 
-		if (command === 'stickersetechooff') {
-			await sendMessage(botToken, OWNER_ID, 'disable');
-			await redis.set('stickersetecho', 'off');
-			stickersetecho = 'off';
-		}
+		await handleShowUpdatedMessages(commandState.showupdatedmessages, requestBody, botToken, OWNER_ID);
 
-		if (sticker && stickerecho === 'on' && chat_type === 'private') {
-			const file_id = sticker.file_id;
-			const file = await getFile({ botToken, file_id });
-			const file_path = file.result.file_path;
-			const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
-			const photoarraybuffer = await downloadFile({ botToken, file_path });
-			const photoBlob = new Blob([Buffer.from(photoarraybuffer)], { type: getMimeType(file_path) });
+		await handleMessageProcessing(messagePlainText, env, botToken, chat_id);
 
-			try {
-				if (sticker.is_video) {
-					await trasToGifWithGithubAction(
-						fileUrl,
-						GITHUB_TOKEN,
-						() => {
-							sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
-						},
-						chat_id
-					);
-				} else {
-					await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
-				}
-			} catch (error) {
-				await sendMessage(botToken, chat_id, `Error: ${error.message}`);
-			}
-		}
-
-		if (requestBody) {
-			if (command === 'showupdatedmessageson') {
-				await sendMessage(botToken, OWNER_ID, 'showUpdatedMessagesOn enable');
-				await redis.set('showupdatedmessages', 'on');
-				showupdatedmessages = 'on';
-			} else if (command === 'showupdatedmessagesoff') {
-				await sendMessage(botToken, OWNER_ID, 'showUpdatedMessagesOff disable');
-				await redis.set('showupdatedmessages', 'off');
-				showupdatedmessages = 'off';
-			}
-		}
-		if (showupdatedmessages === 'on' && requestBody) {
-			sendMessageRespJson = await sendMessage(
-				botToken,
-				OWNER_ID,
-				`
-    \`\`\`json
-    ${JSON.stringify(requestBody, null, 2)}
-    \`\`\`
-    `,
-				'Markdown'
-			);
-		}
-		return new Response(JSON.stringify(sendMessageRespJson, null, 2), {
-			headers: { 'Content-Type': 'application/json' },
-		});
+		return new Response(JSON.stringify(['Body Nothing'], null, 2), { headers: { 'Content-Type': 'application/json' } });
 	},
 };
-
-// if (sticker && sticker.set_name && stickersetecho === 'on' && chat_type === 'private' && stickerecho === 'off') {
-// 	// await sendMessage(botToken, OWNER_ID, 'getStickerSet Test');
-
-// 	const set_name = sticker.set_name;
-// 	// await sendMessage(botToken, OWNER_ID, `sticker.set_name: ${set_name}`);
-// 	const stickerSet = await getStickerSet(botToken, set_name);
-// 	if (stickerSet.result && stickerSet.result.stickers) {
-// 		const stickerSetStickers = stickerSet.result.stickers;
-// 		const length_stickerSetStickers = stickerSetStickers.length;
-// 		// await sendMessage(botToken, chat_id, `length_stickerSetStickers: ${length_stickerSetStickers}`);
-// 		let stickerVideosfileUrlArray = [];
-// 		async function processStickerSet(stickerSetStickers, botToken, chat_id) {
-// 			// 处理所有的 stickers
-// 			const promises = stickerSetStickers.map(async (sticker) => {
-// 				try {
-// 					const file_id = sticker.file_id;
-
-// 					const file = await getFile({ botToken, file_id });
-// 					const file_path = file.result.file_path;
-// 					const fileUrl = `https://api.telegram.org/file/bot${botToken}/${file_path}`;
-// 					const photoarraybuffer = await downloadFile({ botToken, file_path });
-
-// 					// 在浏览器中直接使用 photoarraybuffer
-// 					const photoBlob = new Blob([photoarraybuffer], { type: getMimeType(file_path) });
-
-// 					// await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
-// 					if (sticker.is_video) {
-// 						stickerVideosfileUrlArray.push(fileUrl);
-// 					} else {
-// 						await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
-// 					}
-
-// 					return {
-// 						type: getMimeType(file_path),
-// 						media: photoBlob,
-// 					};
-// 				} catch (error) {
-// 					console.error(`Error processing sticker ${sticker.file_id}:`, error);
-// 					return null;
-// 				}
-// 			});
-
-// 			await Promise.all(promises);
-
-// 			// 处理 stickerVideosfileUrlArray
-// 			await trasToGifWithGithubAction(
-// 				stickerVideosfileUrlArray,
-// 				GITHUB_TOKEN,
-// 				() => {
-// 					sendMessage(botToken, chat_id, 'Echo Sticker Video Failed');
-// 				},
-// 				chat_id
-// 			);
-
-// 			// 等待所有 Promise 完成
-// 			// const inputMediaPhotos = await Promise.all(promises);
-
-// 			// // 过滤掉可能为 null 的项
-// 			// const validInputMediaPhotos = inputMediaPhotos.filter((item) => item !== null);
-
-// 			// // 调用 sendMediaGroup 方法
-// 			// await sendMediaGroup(botToken, chat_id, validInputMediaPhotos.slice(1, 4));
-// 		}
-
-// 		// await processStickerSet(stickerSetStickers, botToken, chat_id);
-
-// 		// 对stickerSetStickers进行分组分批处理，每组4个
-// 		const groupSize = 4;
-// 		for (let i = 0; i < stickerSetStickers.length; i += groupSize) {
-// 			const group = stickerSetStickers.slice(i, i + groupSize);
-// 			await processStickerSet(group, botToken, chat_id);
-// 			// 等待一段时间
-// 			await new Promise((resolve) => setTimeout(resolve, 5000));
-// 		}
-// 	}
-// }
