@@ -9,6 +9,11 @@ export const extractCommand = (message) => {
 			// 确保 message.text 存在并处理命令
 			const text = message.message.text ? message.message.text.trim() : '';
 			const command = text.startsWith('/') ? text.substring(1) : null;
+			//如果有@botname，去掉
+			const index = command.indexOf('@');
+			if (index !== -1) {
+				return command.substring(0, index);
+			}
 			return command;
 		}
 	}
