@@ -1,0 +1,76 @@
+name: Convert WebM to GIF
+
+on:
+  push:
+    paths:
+      - 'res/video/webm/*.webm'
+
+jobs:
+  convert:
+    # 如果提交消息包含或者等于'Delete file'就不执行
+
+    # 如果提交消息包含或者等于'Reset'就不执行
+
+    # Event Message:
+    # Upload Completed
+    # Delete file
+    # Reset
+    # Uploading file
+
+    if: "!contains(github.event.head_commit.message, 'Delete file') && !contains(github.event.head_commit.message, 'Reset') && contains(github.event.head_commit.message, 'Upload Completed')"
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: show files
+        run: ls -l res/video/webm
+
+      - name: Check if there are WebM files
+        id: check_files
+        run: |
+          if [ -z "$(ls -A res/video/webm/*.webm 2>/dev/null | grep -v test_0000.webm)" ]; then
+            echo "No WebM files found."
+            echo "files_found=false" >> $GITHUB_ENV
+          else
+            echo "WebM files found."
+            echo "files_found=true" >> $GITHUB_ENV
+          fi
+
+      - name: Set up FFmpeg
+        if: env.files_found == 'true'
+        run: chmod +x tools/ffmpeg
+
+      - name: Convert WebM to GIF
+        if: env.files_found == 'true'
+        run: |
+          for file in res/video/webm/*.webm
+          do
+            filename=$(basename "$file" .webm)
+            if [ "$filename" != "test_0000" ]; then
+              tools/ffmpeg -i "$file" -loop 0 -vf "fps=10,scale=320:-1:flags=lanczos" -c:v gif -y "res/picture/gif/$filename.gif"
+            fi
+          done
+
+      - name: List GIF files
+        if: env.files_found == 'true'
+        run: ls -l res/picture/gif
+
+      - name: Commit and push GIFs
+        if: env.files_found == 'true'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          OWNER_ID: ${{ secrets.OWNER_ID }}
+        run: |
+          for file in res/picture/gif/*.gif
+          do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file" .gif)
+              if [ "$filename" != "test_0000" ]; then
+                chatID=$(echo "$filename" | awk -F '__' '{print $1}')
+                curl -F "chat_id=$chatID" -F "document=@$file;type=image/gif;filename=$filename.gif" \
+                "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/sendDocument?disable_content_type_detection=true"
+              fi
+            fi
+          done
