@@ -1,3 +1,5 @@
+'use strict';
+
 import { Redis } from '@upstash/redis/cloudflare';
 
 import { sendMessage, sendPhoto, sendPhotoBlob, sendDocumentBlob, sendDocument, sendVideoBlob, sendMediaGroup } from './send.js';
@@ -39,10 +41,126 @@ export default {
 
 		const messagePlainText = !sticker && !command ? requestBody?.message?.text : null;
 
+		// await sendMessage(botToken, OWNER_ID, command);
+		// await sendMessage(botToken, OWNER_ID, messagePlainText);
+
 		let sendMessageRespJson = ['Body Nothing'];
 		let showupdatedmessages = await redis.get('showupdatedmessages');
 		let stickerecho = await redis.get('stickerecho');
 		let stickersetecho = await redis.get('stickersetecho');
+
+		const DependInjectionCommandState = await redis.get(`DependInjectionCommandState:${chat_id}`);
+
+		const DependInjectionCommands = {
+			greet: {
+				HandleInputFunction: async () => {
+					if (
+						messagePlainText &&
+						typeof messagePlainText === 'string' &&
+						messagePlainText.length > 0 &&
+						messagePlainText.length < 20 &&
+						chat_id &&
+						botToken
+					) {
+						return messagePlainText;
+					} else {
+						await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+						throw new Error('ErrorInputFormat');
+					}
+				},
+				ImplementFunction: async (messagePlainText) => {
+					try {
+						await sendMessage(botToken, chat_id, `Hello, ${messagePlainText}`);
+					} catch (error) {
+						await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+					}
+				},
+			},
+			texttoimage: {
+				HandleInputFunction: async () => {
+					if (
+						messagePlainText &&
+						typeof messagePlainText === 'string' &&
+						messagePlainText.length > 0 &&
+						messagePlainText.length < 1000 &&
+						chat_id &&
+						botToken
+					) {
+						return messagePlainText;
+					} else {
+						await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+						throw new Error('ErrorInputFormat');
+					}
+				},
+				ImplementFunction: async (messagePlainText) => {
+					try {
+						const inputs = {
+							prompt: messagePlainText,
+						};
+						const response = await env.AI.run('@cf/stabilityai/stable-diffusion-xl-base-1.0', inputs);
+						const response2 = new Response(response, {
+							headers: {
+								'content-type': 'image/png',
+							},
+						});
+						const arrayBuffer = await response2.arrayBuffer();
+
+						const photoBlob = new Blob([arrayBuffer], { type: 'image/png' });
+
+						await sendPhotoBlob(botToken, chat_id, photoBlob, null, messagePlainText);
+					} catch (error) {
+						await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+					}
+				},
+			},
+		};
+
+		if (DependInjectionCommandState) {
+			try {
+				const DependInjectionCommandStateObj = DependInjectionCommandState;
+				const command = DependInjectionCommandStateObj?.command;
+				const status = DependInjectionCommandStateObj?.status;
+				const HandleInputFunction = DependInjectionCommands[command]?.HandleInputFunction;
+				const ImplementFunction = DependInjectionCommands[command]?.ImplementFunction;
+				const middledatas = DependInjectionCommandStateObj?.middledatas;
+
+				if (command && DependInjectionCommands[command] && HandleInputFunction && ImplementFunction) {
+					if (command === 'greet' && status === 'waiting_for_input') {
+						const messagePlainText = await HandleInputFunction();
+						await ImplementFunction(messagePlainText);
+					}
+					if (command === 'texttoimage' && status === 'waiting_for_input') {
+						const messagePlainText = await HandleInputFunction();
+						await ImplementFunction(messagePlainText);
+					}
+				}
+				if (chat_id && botToken) await sendMessage(botToken, chat_id, 'DependInjectionCommandState Done');
+			} catch (error) {
+				await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+			} finally {
+				await redis.del(`DependInjectionCommandState:${chat_id}`);
+				return new Response('DependInjectionCommandState Done', { status: 200 });
+			}
+		} else {
+			if (command && DependInjectionCommands[command] && chat_id) {
+				// 设置初始状态, 一旦接受依赖注入的command, 就设置为waiting_for_input状态
+				if (command === 'greet' && chat_id && botToken) {
+					await sendMessage(botToken, chat_id, 'Please input your name');
+					await redis.set(
+						`DependInjectionCommandState:${chat_id}`,
+						JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
+					);
+				}
+				if (command === 'texttoimage' && chat_id && botToken) {
+					await sendMessage(botToken, chat_id, 'Please input your text');
+					await redis.set(
+						`DependInjectionCommandState:${chat_id}`,
+						JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
+					);
+				}
+				return new Response('DependInjectionCommandState Done', { status: 200 });
+			}
+		}
 
 		if (!chat_id) {
 			await sendMessage(botToken, OWNER_ID, 'No chat_id');
