@@ -1,22 +1,30 @@
-export async function sendMessage(botToken, chatId, text, parse_mode, reply_markup, reply_parameters) {
-	// ReplyParameters
-	// Describes reply parameters for the message that is being sent.
-
-	// Field	Type	Description
-	// message_id	Integer	Identifier of the message that will be replied to in the current chat, or in the chat chat_id if it is specified
-	// chat_id	Integer or String	Optional. If the message to be replied to is from a different chat, unique identifier for the chat or username of the channel (in the format @channelusername). Not supported for messages sent on behalf of a business account.
-	// allow_sending_without_reply	Boolean	Optional. Pass True if the message should be sent even if the specified message to be replied to is not found. Always False for replies in another chat or forum topic. Always True for messages sent on behalf of a business account.
-	// quote	String	Optional. Quoted part of the message to be replied to; 0-1024 characters after entities parsing. The quote must be an exact substring of the message to be replied to, including bold, italic, underline, strikethrough, spoiler, and custom_emoji entities. The message will fail to send if the quote isn't found in the original message.
-	// quote_parse_mode	String	Optional. Mode for parsing entities in the quote. See formatting options for more details.
-	// quote_entities	Array of MessageEntity	Optional. A JSON-serialized list of special entities that appear in the quote. It can be specified instead of quote_parse_mode.
-	// quote_position	Integer	Optional. Position of the quote in the original message in UTF-16 code units
+export async function sendMessage(
+	botToken,
+	chatId,
+	text, //Text of the message to be sent, 1-4096 characters after entities parsing
+	parse_mode,
+	reply_markup,
+	reply_parameters,
+	protect_content,
+	disable_notification,
+	link_preview_options,
+	entities,
+	business_connection_id,
+	message_effect_id
+) {
 	const url = `https://api.telegram.org/bot${botToken}/sendMessage`;
 	const data = {
-		chat_id: chatId,
-		text: text,
-		parse_mode: parse_mode,
-		reply_markup: reply_markup,
-		reply_parameters: reply_parameters,
+		chat_id: chatId, //Integer or String
+		text: text, //String
+		parse_mode: parse_mode, //String
+		reply_markup: reply_markup, //	InlineKeyboardMarkup or ReplyKeyboardMarkup or ReplyKeyboardRemove or ForceReply
+		reply_parameters: reply_parameters, //ReplyParameters object
+		protect_content: protect_content, //bool
+		disable_notification: disable_notification, //bool
+		link_preview_options: link_preview_options, //object LinkPreviewOptions
+		entities: entities, //array[MessageEntity]
+		business_connection_id: business_connection_id, //string
+		message_effect_id: message_effect_id, //string
 	};
 
 	try {

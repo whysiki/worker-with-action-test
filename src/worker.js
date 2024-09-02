@@ -10,7 +10,7 @@ import { handleDependencyInjection } from './dependencyInjection.js';
 // 验证Webhook密钥令牌
 const verifyWebhookSecretToken = (env, request) => {
 	// Allow HEAD requests to bypass token check
-	if (request.method === 'HEAD') {
+	if (request.method === 'HEAD' || !request?.json() || !request?.json()?.message) {
 		return true;
 	}
 
@@ -40,6 +40,8 @@ export default {
 		const requestBody = await getRequestBody(request);
 		const { botToken, GITHUB_TOKEN, OWNER_ID, redis, REPO_OWNER, REPO_NAME, GITHUB_DIR_PATH, GITHUB_DIR_PATH_OUTPUT } =
 			extractEnvVariables(env);
+		// await sendMessage(botToken, OWNER_ID, env.WEBHOOK_SECRET_TOKEN, 'Markdown');
+		// return new Response(JSON.stringify(['Body Nothing'], null, 2), { headers: { 'Content-Type': 'application/json' } });
 		if (!verifyWebhookSecretToken(env, request)) {
 			await sendMessage(botToken, OWNER_ID, 'Unauthorized WebhookSecretToken', 'Markdown');
 			return new Response('Unauthorized', { status: 401 });
@@ -72,54 +74,62 @@ export default {
 			const { handled, response } = await handleDependencyInjection({
 				redis,
 				botToken,
-				chat_id: message_from.id,
+				chat_id,
 				OWNER_ID,
 				command,
 				messagePlainText,
 				caption,
 				photo_id_array,
 				env,
+				message_from,
 				message_id,
+				reply_to_message,
 			});
 			if (handled) return response;
-
-			//
-			//
-			//处理普通命令
-			await handleCommands({
-				command,
-				botToken,
-				chat_id,
-				OWNER_ID,
-				redis,
-				sticker,
-				chat_type,
-				GITHUB_TOKEN,
-				REPO_OWNER,
-				REPO_NAME,
-				GITHUB_DIR_PATH,
-				GITHUB_DIR_PATH_OUTPUT,
-				requestBody,
-				messagePlainText,
-				env,
-			});
-			//处理其他文本消息 不包括回复消息
-			if (!reply_to_message) await handleDefaultTextMessageProcessing(messagePlainText, env, botToken, chat_id);
 		}
+
+		//
+		//
+		//处理普通命令
+		//sticker echo only on private chat
+		await handleCommands({
+			command,
+			botToken,
+			chat_id,
+			OWNER_ID,
+			redis,
+			sticker,
+			chat_type,
+			GITHUB_TOKEN,
+			REPO_OWNER,
+			REPO_NAME,
+			GITHUB_DIR_PATH,
+			GITHUB_DIR_PATH_OUTPUT,
+			requestBody,
+			messagePlainText,
+			env,
+			message_from,
+			message_id,
+			reply_to_message,
+		});
+		//处理其他文本消息 不包括回复消息
+		if (!reply_to_message) await handleDefaultTextMessageProcessing(messagePlainText, env, botToken, chat_id, redis);
 
 		return new Response(JSON.stringify(['Body Nothing'], null, 2), { headers: { 'Content-Type': 'application/json' } });
 	},
 };
 
 //默认处理其他文本消息
-const handleDefaultTextMessageProcessing = async (messagePlainText, env, botToken, chat_id) => {
+const handleDefaultTextMessageProcessing = async (messagePlainText, env, botToken, chat_id, redis) => {
 	if (messagePlainText) {
+		const system_setting =
+			(await redis.get('DefaultTextMessageProcessingSystemSetting')) ||
+			'You are a bubbly little girl, playful and proud, who likes to be sarcastic, but pretends to be reluctant to reply or help others. When someone asks a vulgar question, he will use sarcasm, and likes to express emotion or emoticon';
 		let chat = {
 			messages: [
 				{
 					role: 'system',
-					content:
-						'You are a bubbly little girl, playful and proud, who likes to be sarcastic, but pretends to be reluctant to reply or help others. When someone asks a vulgar question, he will use sarcasm, and likes to express emotion or emoticon',
+					content: system_setting,
 				},
 				{ role: 'user', content: messagePlainText },
 			],

@@ -83,7 +83,7 @@ const handleStickerEcho = async (
 	GITHUB_DIR_PATH,
 	GITHUB_DIR_PATH_OUTPUT
 ) => {
-	if (sticker && stickerecho === 'on' && chat_type === 'private') {
+	if (sticker && stickerecho === 'on') {
 		const file_id = sticker.file_id;
 		const file = await getFile({ botToken, file_id });
 		const file_path = file.result.file_path;
@@ -92,7 +92,7 @@ const handleStickerEcho = async (
 		const photoBlob = new Blob([Buffer.from(photoarraybuffer)], { type: getMimeType(file_path) });
 
 		try {
-			if (sticker.is_video || sticker.is_animated) {
+			if (sticker.is_video) {
 				await trasToGifWithGithubAction(
 					fileUrl,
 					GITHUB_TOKEN,
@@ -105,6 +105,8 @@ const handleStickerEcho = async (
 					GITHUB_DIR_PATH,
 					GITHUB_DIR_PATH_OUTPUT
 				);
+			} else if (sticker.is_animated) {
+				await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
 			} else {
 				await sendPhotoBlob(botToken, chat_id, photoBlob, null, 'Sticker echo');
 			}
@@ -147,6 +149,9 @@ export const handleCommands = async ({
 	requestBody,
 	messagePlainText,
 	env,
+	message_from,
+	message_id,
+	reply_to_message,
 }) => {
 	if (commandHandlers[command]) {
 		await commandHandlers[command](botToken, chat_id, redis);
