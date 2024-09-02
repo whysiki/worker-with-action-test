@@ -1,67 +1,13 @@
 import { sendMessage, sendPhotoBlob } from './send.js';
 import { getFile, downloadFile } from './getResource.js';
 
-// 一旦处理命令或者进入依赖注入命令，就不会再处理其他命令或者消息
-export const handleDependencyInjectionCommands = async (
-	DependInjectionCommandState,
-	DependInjectionCommands,
-	botToken,
-	chat_id,
-	OWNER_ID,
-	redis,
-	command,
-	messagePlainText,
-	caption,
-	photo_id_array,
-	env
-) => {
-	const setDependInjectionState = async (chat_id, command, message) => {
-		await sendMessage(botToken, chat_id, message);
-		await redis.set(
-			`DependInjectionCommandState:${chat_id}`,
-			JSON.stringify({ command: command, status: 'waiting_for_input', middledatas: {} })
-		);
-	};
-
-	if (DependInjectionCommandState) {
-		try {
-			const { command, status } = DependInjectionCommandState;
-			const { HandleInputFunction, ImplementFunction } = DependInjectionCommands[command] || {};
-
-			if (command && HandleInputFunction && ImplementFunction && status === 'waiting_for_input') {
-				const input = await HandleInputFunction(); //  闭包传递的函数已经有了参数
-				await ImplementFunction(...input);
-			}
-		} catch (error) {
-			await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
-		} finally {
-			if (chat_id && botToken) await sendMessage(botToken, chat_id, 'DependInjectionCommandState Done');
-			await redis.del(`DependInjectionCommandState:${chat_id}`);
-			return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
-		}
-	}
-
-	if (command && DependInjectionCommands[command] && chat_id) {
-		switch (command) {
-			case 'greet':
-				await setDependInjectionState(chat_id, command, 'Please input your name');
-				break;
-			case 'texttoimage':
-				await setDependInjectionState(chat_id, command, 'Please input your text');
-				break;
-			case 'imagetotext':
-				await setDependInjectionState(chat_id, command, 'Please send a photo with a caption');
-				break;
-			case 'image2image':
-				await setDependInjectionState(chat_id, command, 'Please send a photo with a caption');
-				break;
-		}
-		return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
-	}
-
-	return { handled: false };
+// 设置依赖注入状态以及提示输入依赖
+const setDependInjectionState = async (botToken, chat_id, redis, command, message, status) => {
+	await sendMessage(botToken, chat_id, message);
+	await redis.set(`DependInjectionCommandState:${chat_id}`, JSON.stringify({ command: command, status: status, middledatas: {} }));
 };
 
+// 依赖注入命令 目前下面四个命令都是单个依赖注入
 const Greet = {
 	handleInput: async (messagePlainText, chat_id, botToken) => {
 		if (
@@ -74,7 +20,7 @@ const Greet = {
 		) {
 			return [messagePlainText];
 		} else {
-			await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+			// await sendMessage(botToken, chat_id, 'ErrorInputFormat');
 			throw new Error('ErrorInputFormat');
 		}
 	},
@@ -87,7 +33,6 @@ const Greet = {
 		}
 	},
 };
-
 const TextToImage = {
 	handleInput: async (messagePlainText, chat_id, botToken) => {
 		if (
@@ -100,11 +45,10 @@ const TextToImage = {
 		) {
 			return [messagePlainText];
 		} else {
-			await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+			// await sendMessage(botToken, chat_id, 'ErrorInputFormat');
 			throw new Error('ErrorInputFormat');
 		}
 	},
-
 	implement: async (messagePlainText, env, botToken, chat_id, OWNER_ID) => {
 		try {
 			const inputs = { prompt: messagePlainText };
@@ -124,7 +68,7 @@ const ImageToText = {
 		if (caption && photo_id_array && photo_id_array.length > 0 && chat_id && botToken) {
 			return [photo_id_array[0], caption];
 		} else {
-			await sendMessage(botToken, chat_id, 'ErrorInputFormat');
+			// await sendMessage(botToken, chat_id, 'ErrorInputFormat');
 			throw new Error('ErrorInputFormat');
 		}
 	},
@@ -181,21 +125,106 @@ const ImageToImage = {
 	},
 };
 
-export const initializeDependInjectionCommands = (messagePlainText, caption, photo_id_array, chat_id, botToken, env, OWNER_ID) => ({
+// 初始化依赖注入命令 闭包传递的函数已经有了参数
+// 上层封装 ImplementFunction 只需要传递HandleInputFunction的返回参数列表
+const initializeDependInjectionCommands = (messagePlainText, caption, photo_id_array, chat_id, botToken, env, OWNER_ID) => ({
 	greet: {
 		HandleInputFunction: () => Greet.handleInput(messagePlainText, chat_id, botToken),
 		ImplementFunction: (messagePlainText) => Greet.implement(messagePlainText, botToken, chat_id, OWNER_ID),
+		NeedInjectionNumber: 1,
 	},
 	texttoimage: {
 		HandleInputFunction: () => TextToImage.handleInput(messagePlainText, chat_id, botToken),
 		ImplementFunction: (messagePlainText) => TextToImage.implement(messagePlainText, env, botToken, chat_id, OWNER_ID),
+		NeedInjectionNumber: 1,
 	},
 	imagetotext: {
 		HandleInputFunction: () => ImageToText.handleInput(caption, photo_id_array, chat_id, botToken),
 		ImplementFunction: (photo_id, caption) => ImageToText.implement(photo_id, caption, env, botToken, chat_id, OWNER_ID),
+		NeedInjectionNumber: 1,
 	},
 	image2image: {
 		HandleInputFunction: () => ImageToImage.handleInput(caption, photo_id_array, chat_id, botToken),
 		ImplementFunction: (photo_id, caption) => ImageToImage.implement(photo_id, caption, env, botToken, chat_id, OWNER_ID),
+		NeedInjectionNumber: 1,
 	},
 });
+
+// 处理依赖注入
+export const handleDependencyInjection = async ({
+	redis,
+	botToken,
+	chat_id,
+	OWNER_ID,
+	command,
+	messagePlainText,
+	caption,
+	photo_id_array,
+	env,
+}) => {
+	//获取会话状态
+	const DependInjectionCommandState = await redis.get(`DependInjectionCommandState:${chat_id}`);
+	const DependInjectionCommands = initializeDependInjectionCommands(
+		messagePlainText,
+		caption,
+		photo_id_array,
+		chat_id,
+		botToken,
+		env,
+		OWNER_ID
+	);
+
+	if (DependInjectionCommandState) {
+		try {
+			const { command, status } = DependInjectionCommandState;
+			const { HandleInputFunction, ImplementFunction, NeedInjectionNumber } = DependInjectionCommands[command] || {};
+			//单个依赖注入
+			if (NeedInjectionNumber === 1) {
+				try {
+					if (command && HandleInputFunction && ImplementFunction && status === 'waiting_for_input') {
+						const input = await HandleInputFunction(); //  闭包传递的函数已经有了参数
+						await ImplementFunction(...input);
+					}
+				} catch (error) {
+					await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+				} finally {
+					await redis.del(`DependInjectionCommandState:${chat_id}`);
+				}
+			}
+			//多个依赖注入
+			//待写
+		} catch (error) {
+			await sendMessage(botToken, OWNER_ID, `Error: ${error.message}`);
+			await redis.del(`DependInjectionCommandState:${chat_id}`);
+		} finally {
+			//停止后续处理，结束此次依赖注入
+			if (chat_id && botToken) await sendMessage(botToken, chat_id, 'DependInjectionCommandState Done');
+			return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
+		}
+	}
+
+	if (command && DependInjectionCommands[command] && chat_id) {
+		//初始化依赖注入状态
+		switch (command) {
+			case 'greet':
+				await setDependInjectionState(botToken, chat_id, redis, command, 'please input your name', 'waiting_for_input');
+				break;
+			case 'texttoimage':
+				await setDependInjectionState(botToken, chat_id, redis, command, 'please input a text', 'waiting_for_input');
+				break;
+			case 'imagetotext':
+				await setDependInjectionState(botToken, chat_id, redis, command, 'please input a photo with caption', 'waiting_for_input');
+				break;
+			case 'image2image':
+				await setDependInjectionState(botToken, chat_id, redis, command, 'please input a photo with caption', 'waiting_for_input');
+				break;
+			default:
+				await sendMessage(botToken, chat_id, 'No matched a injection command');
+				break;
+		}
+		//返回处理成功回应，以停止后续处理
+		return { handled: true, response: new Response('DependInjectionCommandState Done', { status: 200 }) };
+	}
+
+	return { handled: false };
+};
