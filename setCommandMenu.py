@@ -50,6 +50,11 @@ def set_command_menu():
             "command": "stickerEchoOff".lower(),  # stickerechooff
             "description": "Sticker echo off",
         },
+        # allclose
+        {
+            "command": "allclose".lower(),
+            "description": "Close all chats",
+        },
         # {
         #     "command": "stickerSetEchoOn".lower(),  #
         #     "description": "Echo All Stickers on",
