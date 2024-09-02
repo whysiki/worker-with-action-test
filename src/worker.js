@@ -7,7 +7,7 @@ import { extractCommand, extractSticker } from './extract.js';
 import { getFile, downloadFile } from './getResource.js';
 import { trasToGifWithGithubAction } from './githubActions.js';
 import { getMimeType } from './processData.js';
-import { handleCommands, handleStickerEcho, handleStickerSetEcho, handleShowUpdatedMessages } from './handleCommand.js';
+import { handleCommands, handleStickerEcho, handleStickerSetEcho, handleShowUpdatedMessages, handleStart } from './handleCommand.js';
 import { handleDependencyInjectionCommands, initializeDependInjectionCommands } from './dependencyInjection.js';
 
 export default {
@@ -41,6 +41,7 @@ export default {
 			stickerecho: values[0] || 'off',
 			stickersetecho: values[1] || 'off',
 			showupdatedmessages: values[2] || 'off',
+			start: command === 'start' ? 'on' : 'off',
 		};
 
 		const DependInjectionCommandState = await redis.get(`DependInjectionCommandState:${chat_id}`);
@@ -74,6 +75,8 @@ export default {
 		if (handled) {
 			return response;
 		}
+
+		await handleStart(commandState.start, botToken, chat_id, OWNER_ID, redis);
 
 		await handleStickerEcho(
 			sticker,

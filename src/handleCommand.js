@@ -54,6 +54,30 @@ export const handleCommands = async (command, botToken, chat_id, OWNER_ID, redis
 	}
 };
 
+// start
+export const handleStart = async (start, botToken, chat_id, OWNER_ID, redis) => {
+	if (start == 'on') {
+		// await sendMessage(botToken, chat_id, 'Bot started');
+		const url = `https://api.telegram.org/bot${botToken}/getMe`;
+		const response = await fetch(url);
+		const json = await response.json();
+		const botInfo = json;
+		const message = `
+✨ *Bot Information* ✨
+
+🤖 *Name*: ${botInfo.result.first_name}
+👤 *Username*: @${botInfo.result.username}
+🆔 *ID*: \`${botInfo.result.id}\`
+📱 *Can Join Groups*: ${botInfo.result.can_join_groups ? 'Yes ✅' : 'No ❌'}
+📥 *Can Read All Group Messages*: ${botInfo.result.can_read_all_group_messages ? 'Yes ✅' : 'No ❌'}
+🔍 *Supports Inline Queries*: ${botInfo.result.supports_inline_queries ? 'Yes ✅' : 'No ❌'}
+🏢 *Can Connect to Business*: ${botInfo.result.can_connect_to_business ? 'Yes ✅' : 'No ❌'}
+🌐 *Has Main Web App*: ${botInfo.result.has_main_web_app ? 'Yes ✅' : 'No ❌'}
+`;
+		await sendMessage(botToken, chat_id, message, 'Markdown');
+	}
+};
+
 export const handleStickerEcho = async (
 	sticker,
 	stickerecho,

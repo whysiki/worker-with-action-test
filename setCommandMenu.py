@@ -19,16 +19,21 @@ from rich import print
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 API_TOKEN = TOKEN
-OWNER_ID = os.getenv("OWNER_ID")
-ACCOUNT_ID = os.getenv("ACCOUNT_ID")
+# OWNER_ID = os.getenv("OWNER_ID")
+# ACCOUNT_ID = os.getenv("ACCOUNT_ID")
 proxy = os.getenv("PROXY")
-API_BASE_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/run/"
-headers = {"Authorization": f"Bearer {API_TOKEN}"}
+# API_BASE_URL = f"https://api.cloudflare.com/client/v4/accounts/{ACCOUNT_ID}/ai/run/"
+# headers = {"Authorization": f"Bearer {API_TOKEN}"}
 
 
 def set_command_menu():
 
     commands = [
+        # start
+        {
+            "command": "start".lower(),
+            "description": "Start the bot",
+        },
         {
             "command": "showUpdatedMessagesOn".lower(),
             "description": "Show updated messages on",
