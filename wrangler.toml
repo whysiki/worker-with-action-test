@@ -1,7 +1,6 @@
 name = "tgbot-whysiki"
 main = "src/worker.js"
 compatibility_date = "2024-08-29"
-workers_dev = true
 node_compat = true
 [vars]
 
@@ -11,3 +10,7 @@ node_compat = true
 
 [ai]
 binding = "AI"
+
+
+[dev]
+port = 8787
