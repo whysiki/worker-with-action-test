@@ -161,6 +161,7 @@ export const handleDependencyInjection = async ({
 	caption,
 	photo_id_array,
 	env,
+	message_id,
 }) => {
 	//获取会话状态
 	const DependInjectionCommandState = await redis.get(`DependInjectionCommandState:${chat_id}`);
